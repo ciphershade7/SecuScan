@@ -1,6 +1,20 @@
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import { HugeiconsIcon } from '@hugeicons/react'
+import {
+  Analytics02Icon,
+  Archive02Icon,
+  Download01Icon,
+  File01Icon,
+  KnightShieldIcon,
+  Pdf02Icon,
+  Radar02Icon,
+  Refresh01Icon,
+  ScanEyeIcon,
+  ShieldUserIcon,
+  UserShield02Icon,
+} from '@hugeicons/core-free-icons'
 import { getDashboardSummary, getReports, API_BASE } from '../api'
 import { formatDateLong } from '../utils/date'
 
@@ -32,6 +46,18 @@ const itemVariants = {
       y: 0,
       transition: { duration: 0.4 }
     }
+}
+
+function ReportIcon({
+  icon,
+  size = 20,
+  className = '',
+}: {
+  icon: any
+  size?: number
+  className?: string
+}) {
+  return <HugeiconsIcon icon={icon} size={size} strokeWidth={1.9} className={className} />
 }
 
 export default function Reports() {
@@ -76,14 +102,14 @@ export default function Reports() {
                className="bg-charcoal border-4 border-black p-4 text-silver-bright shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all"
                title="Refresh Archive"
             >
-               <span className="material-symbols-outlined">sync</span>
+               <ReportIcon icon={Refresh01Icon} className="block" />
             </button>
             <button
                onClick={() => window.open(`${API_BASE}/task/latest/report/pdf`, '_blank')} // Placeholder for latest report
                className="bg-silver-bright border-4 border-black p-4 text-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all"
                title="Download Latest Briefing"
             >
-               <span className="material-symbols-outlined">cloud_download</span>
+               <ReportIcon icon={Pdf02Icon} className="block" />
             </button>
          </div>
       </header>
@@ -99,7 +125,7 @@ export default function Reports() {
               <div key={i} className={`${m.color} border-4 border-black p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col justify-between h-40 group hover:-translate-y-1 transition-transform`}>
                   <div className="flex justify-between items-start">
                      <span className="text-[10px] font-black text-black uppercase tracking-[0.2em] italic">{m.label}</span>
-                     <span className="material-symbols-outlined text-black/20 group-hover:text-black transition-colors">folder_zip</span>
+                     <ReportIcon icon={Archive02Icon} className="text-black/20 group-hover:text-black transition-colors" />
                   </div>
                   <div className="flex items-baseline gap-2">
                       <span className="text-5xl font-black text-black font-mono leading-none tracking-tighter">{m.val}</span>
@@ -127,7 +153,7 @@ export default function Reports() {
                                   }`}
                               >
                                   {t} BRIEFINGS
-                                  {selectedType === t && <span className="material-symbols-outlined text-xs">radar</span>}
+                                  {selectedType === t && <ReportIcon icon={Radar02Icon} size={16} className="text-black" />}
                               </button>
                           ))}
                       </div>
@@ -135,7 +161,7 @@ export default function Reports() {
 
                   <div className="p-8 border-4 border-black border-dashed space-y-4 bg-charcoal-dark/50">
                       <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined text-rag-green text-lg">verified</span>
+                        <ReportIcon icon={KnightShieldIcon} className="text-rag-green" />
                         <h4 className="text-[10px] font-black text-silver-bright uppercase tracking-[0.2em] italic leading-none">Integrity_Secure</h4>
                       </div>
                       <p className="text-[10px] text-silver/40 font-black uppercase tracking-widest leading-loose italic">
@@ -194,7 +220,7 @@ export default function Reports() {
                                       }`}>
                                           {report.type}_TYPE
                                       </span>
-                                      <span className="material-symbols-outlined text-silver/10 group-hover:text-silver-bright transition-colors text-2xl">description</span>
+                                      <ReportIcon icon={File01Icon} size={24} className="text-silver/10 group-hover:text-silver-bright transition-colors" />
                                   </div>
 
                                   <div>
@@ -230,14 +256,14 @@ export default function Reports() {
                                               className="bg-charcoal-dark border-4 border-black p-3 text-silver/20 group-hover:text-silver-bright group-hover:bg-black transition-all"
                                               title="View Briefing"
                                           >
-                                              <span className="material-symbols-outlined text-sm">visibility</span>
+                                              <ReportIcon icon={ScanEyeIcon} size={18} />
                                           </button>
                                           <button
                                               onClick={() => window.open(`${API_BASE}/task/${report.task_id}/report/pdf`, '_blank')}
                                               className="bg-charcoal-dark border-4 border-black p-3 text-silver/20 group-hover:text-silver-bright group-hover:bg-black transition-all"
                                               title="Download PDF"
                                           >
-                                              <span className="material-symbols-outlined text-sm">download</span>
+                                              <ReportIcon icon={Download01Icon} size={18} />
                                           </button>
                                       </div>
                                   </div>
@@ -245,9 +271,12 @@ export default function Reports() {
 
                                {/* Background Hover Icon */}
                                <div className="absolute -right-12 -bottom-12 opacity-0 group-hover:opacity-[0.03] transition-all duration-1000 transform scale-150 rotate-12 pointer-events-none">
-                                  <span className="material-symbols-outlined text-[200px] text-silver-bright">
-                                      {report.type === 'executive' ? 'leaderboard' : report.type === 'compliance' ? 'verified_user' : 'terminal'}
-                                  </span>
+                                  <div className="text-silver-bright">
+                                      <ReportIcon
+                                        icon={report.type === 'executive' ? Analytics02Icon : report.type === 'compliance' ? UserShield02Icon : ShieldUserIcon}
+                                        size={200}
+                                      />
+                                  </div>
                                </div>
                                </motion.div>
                             ))
@@ -255,7 +284,7 @@ export default function Reports() {
 
                       {reports.length === 0 && (
                           <div className="col-span-2 py-40 border-4 border-dashed border-black/5 text-center flex flex-col items-center gap-8 bg-charcoal/30">
-                              <span className="material-symbols-outlined text-silver/5 text-9xl">folder_off</span>
+                              <ReportIcon icon={Archive02Icon} size={120} className="text-silver/5" />
                               <div className="space-y-2">
                                   <p className="text-xl font-black text-silver/20 uppercase tracking-[0.4em] italic">Archive Isolated</p>
                                   <p className="text-xs font-mono text-silver/10 uppercase tracking-widest leading-relaxed">System buffer awaiting briefing generation protocols</p>

@@ -154,6 +154,8 @@ pip install --upgrade pip -q
 
 log_info "Installing backend dependencies from backend/requirements.txt..."
 pip install -r backend/requirements.txt -q
+log_info "Installing HTTPX CLI extras required by scanner plugins..."
+pip install "httpx[cli]>=0.28.1" -q
 if [ -f "backend/requirements-dev.txt" ]; then
     log_info "Installing backend development dependencies..."
     pip install -r backend/requirements-dev.txt -q
