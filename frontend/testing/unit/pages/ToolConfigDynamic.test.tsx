@@ -201,7 +201,7 @@ describe('ToolConfig dynamic schema flow', () => {
 
     await screen.findByText(/Nuclei Mock/i)
     const targetInput = screen.getByPlaceholderText('https://secuscan.in')
-    
+
     // Initially FIX_PARAMETERS because target is required and empty
     expect(screen.getByText(/FIX_PARAMETERS/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /FIX_PARAMETERS/i })).toBeDisabled()
