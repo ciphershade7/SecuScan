@@ -1102,11 +1102,9 @@ async def get_audit_logs(
     Ordered by timestamp descending. Sensitive context data is intentionally excluded.
     """
     db = await get_db()
-    
     # Get the total count of logs so the frontend knows how many pages exist
     count_result = await db.fetchone("SELECT COUNT(*) as count FROM audit_log")
     total = count_result["count"] if count_result else 0
-    
     # Fetch the specific page of data with a stable sort
     query = """
         SELECT id, timestamp, event_type, severity, user_id, ip_address, message, task_id, plugin_id
@@ -1115,7 +1113,6 @@ async def get_audit_logs(
         LIMIT ? OFFSET ?
     """
     rows = await db.fetchall(query, (limit, offset))
-    
     # Return the formatted response wrapper
     return {
         "items": rows,
