@@ -86,6 +86,12 @@ def test_all_scantools_have_backend_plugins(test_client):
         f"Missing backend plugins for scanTools: {sorted(scan_tool_ids - backend_plugin_ids)}"
     )
 
+
+def test_missing_plugin_schema_returns_404(test_client):
+    response = test_client.get("/api/v1/plugin/does-not-exist/schema")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Plugin not found: does-not-exist"
+
 def test_subdomain_discovery(test_client):
     mock_out = "admin.example.com\ndev.example.com\napi.example.com"
     result = run_plugin_test(test_client, "subdomain_discovery", {"target": "example.com"}, mock_out)

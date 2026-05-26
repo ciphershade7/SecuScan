@@ -114,11 +114,8 @@ def test_audit_default(test_client):
     data = response.json()
     assert data["limit"] == 20
     assert data["offset"] == 0
-
-# To ensure sensitive data is completely excluded
-    if "items" in data:
-        for entry in data["items"]:
-            assert "context_json" not in entry
+    assert "items" in data
+    assert all("context_json" not in entry for entry in data["items"])
 
 def test_audit_custom(test_client):
     """Test that the audit log endpoint respects custom limit and offset parameters."""
@@ -127,11 +124,8 @@ def test_audit_custom(test_client):
     data = response.json()
     assert data["limit"] == 5
     assert data["offset"] == 10
-
-# To ensure sensitive data is completely excluded
-    if "items" in data:
-        for entry in data["items"]:
-            assert "context_json" not in entry
+    assert "items" in data
+    assert all("context_json" not in entry for entry in data["items"])
 
 
 def test_audit_max_limit(test_client):
