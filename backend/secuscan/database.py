@@ -241,23 +241,31 @@ class Database:
 
     async def execute(self, query: str, params: tuple = ()):
         """Execute a write query."""
+        if getattr(self, "_connection", None) is None:
+            await self.connect()
         await self.connection.execute(query, params)
         await self.connection.commit()
 
     async def fetchone(self, query: str, params: tuple = ()) -> Optional[Dict]:
         """Fetch one row."""
+        if getattr(self, "_connection", None) is None:
+            await self.connect()
         async with self.connection.execute(query, params) as cursor:
             row = await cursor.fetchone()
             return dict(row) if row else None
 
     async def fetchall(self, query: str, params: tuple = ()) -> List[Dict]:
         """Fetch all rows."""
+        if getattr(self, "_connection", None) is None:
+            await self.connect()
         async with self.connection.execute(query, params) as cursor:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
 
     async def executescript(self, script: str):
         """Execute a schema or migration script."""
+        if getattr(self, "_connection", None) is None:
+            await self.connect()
         await self.connection.executescript(script)
         await self.connection.commit()
 
@@ -303,6 +311,18 @@ async def init_db(db_path: Optional[str] = None) -> Database:
 
 async def get_db() -> Database:
     """Get the global database instance."""
+    global db
     if db is None:
-        raise RuntimeError("Database not initialized")
+        # Lazily initialize the database if not already connected.
+        # This helps tests and callers that don't rely on the application
+        # lifespan to have initialized the DB yet.
+        await init_db()
+
+    if db is None:
+        raise RuntimeError("Database initialization failed")
+
+    # Ensure the underlying connection is open
+    if getattr(db, "_connection", None) is None:
+        await db.connect()
+
     return db

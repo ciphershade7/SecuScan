@@ -2,7 +2,7 @@
 API routes for SecuScan backend
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Response, Query, Request
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Response, Query, Request, Depends
 from fastapi.responses import JSONResponse
 from typing import Any, Optional, List, Dict, Callable
 import json

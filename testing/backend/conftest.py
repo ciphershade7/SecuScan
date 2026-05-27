@@ -34,6 +34,15 @@ def setup_test_environment(monkeypatch):
 
     yield temp_path
 
+    # Ensure any initialized async DB is disconnected before cleaning up files
+    try:
+        import asyncio
+        if database_module.db:
+            asyncio.run(database_module.db.disconnect())
+    except Exception:
+        # Best-effort disconnect; continue to cleanup even if disconnect fails
+        pass
+
     temp_dir.cleanup()
 
 
