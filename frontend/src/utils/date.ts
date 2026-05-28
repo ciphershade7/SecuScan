@@ -8,10 +8,10 @@ export function parseDateSafe(rawValue: string | null | undefined): Date | null 
   if (raw.toLowerCase() === 'now') return new Date()
 
   try {
-    // Handle formats like "YYYY-MM-DD HH:MM:SS" (SQLite) vs standard ISO-8601
+  // Handle formats like "YYYY-MM-DD HH:MM:SS" (SQLite) vs standard ISO-8601
     const isoCompatible = raw.includes('T') ? raw : raw.replace(' ', 'T')
-    
-    // Check if the string already has timezone info (e.g. "Z" or "+HH:MM")
+
+  // Check if the string already has timezone info (e.g. "Z" or "+HH:MM")
     const hasTimezone = /(?:Z|[+-]\d{2}:\d{2})$/.test(isoCompatible)
     
     // We try multiple candidate strings if timezone is missing
@@ -20,15 +20,13 @@ export function parseDateSafe(rawValue: string | null | undefined): Date | null 
       : [`${isoCompatible}Z`, isoCompatible, raw]
 
     for (const candidate of candidates) {
-    const d = new Date(candidate)
-  
-    // 1. Check if the date is technically valid
-    const isValid = !Number.isNaN(d.getTime())
-  
-   // 2. Sanity check: Ensure the year is between 1900 and 2100
-    const isRealistic = isValid && d.getFullYear() > 1900 && d.getFullYear() < 2100
-
-    if (isRealistic) return d
+      const d = new Date(candidate)
+      const isValid = !Number.isNaN(d.getTime())
+      
+      // Filter out invalid dates and unrealistic years (e.g., year 99999)
+      if (isValid && d.getFullYear() > 1900 && d.getFullYear() < 2100) {
+        return d
+      }
     }
   } catch (error) {
     console.error('Date parsing failed:', error, raw)
@@ -50,7 +48,7 @@ function getPreferredTimeZone(): string | undefined {
             }
         }
     } catch (e) {
-        // Fallback to system default
+      // Fallback to system default
     }
     return undefined;
 }
