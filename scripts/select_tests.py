@@ -4,7 +4,6 @@ import sys
 import argparse
 import subprocess
 
-
 def get_changed_files():
     base_ref = os.environ.get("GITHUB_BASE_REF", "main")
 
@@ -122,6 +121,7 @@ def select_tests(files, event_name="push"):
         - Skip tests for docs-only changes
         - Still run full suite for shared config changes
     """
+    #Added a warning message when no changed files are detected before falling back to the full test suite.
     if not files:
         print(
             "Warning: No changed files detected. "
