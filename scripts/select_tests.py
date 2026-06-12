@@ -31,16 +31,12 @@ def get_changed_files():
             for line in res.stdout.splitlines()
             if line.strip()
             ]
-            
             if files:
                 return files
-        
         except subprocess.CalledProcessError:
             had_error = True
-            
     if had_error:
         print("Warning: Unable to determine changed files.")
-            
     return []
 
 
