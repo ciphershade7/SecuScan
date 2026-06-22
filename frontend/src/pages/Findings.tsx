@@ -966,16 +966,6 @@ export default function Findings() {
     <span className="text-xs font-mono text-silver/60">
       ID: {selectedFinding.id}
     </span>
-
-    <button
-      type="button"
-      onClick={() => copyFindingId(selectedFinding.id)}
-      className="border border-rag-blue/25 bg-rag-blue/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-rag-blue"
-    >
-      {copiedFindingId === selectedFinding.id
-        ? 'Copied'
-        : 'Copy ID'}
-    </button>
   </div>
 </div>
 
@@ -1169,13 +1159,11 @@ export default function Findings() {
                         {copiedFindingId === selectedFinding.id ? 'Copied' : 'Copy Brief'}
                       </button>
                       <button
-                      type="button"
-                      onClick={() => copyFindingId(selectedFinding.id)}
-                      className="border border-rag-green/25 bg-rag-green/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-rag-green"
->
-                      {copiedFindingId === selectedFinding.id
-                      ? 'ID Copied'
-                       : 'Copy ID'}
+                        type="button"
+                        onClick={() => copyFindingId(selectedFinding.id)}
+                        className="border border-rag-green/25 bg-rag-green/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-rag-green"
+                      >
+                        {copiedFindingId === selectedFinding.id ? 'Copied' : 'Copy ID'}
                       </button>
                     </div>
                   </div>

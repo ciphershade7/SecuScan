@@ -231,6 +231,42 @@ describe('Findings — virtualized list', () => {
     })
   })
 
+  it('copies finding id and shows success feedback', async () => {
+    const findings = [makeFinding({ id: 'f1', title: 'ID Copy Test' })]
+    vi.mocked(getFindings).mockResolvedValue({ findings })
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+    })
+
+    render(<Findings />)
+    await waitFor(() => expect(screen.queryByText('Synchronizing findings feed...')).not.toBeInTheDocument())
+
+    const copyButton = screen.getByRole('button', { name: /Copy ID/i })
+    await userEvent.click(copyButton)
+
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith('f1'))
+    expect(copyButton).toHaveTextContent('Copied')
+  })
+
+  it('keeps copy state idle when finding id copy fails', async () => {
+    const findings = [makeFinding({ id: 'f2', title: 'ID Copy Failure Test' })]
+    vi.mocked(getFindings).mockResolvedValue({ findings })
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: vi.fn().mockRejectedValue(new Error('clipboard unavailable')) },
+    })
+
+    render(<Findings />)
+    await waitFor(() => expect(screen.queryByText('Synchronizing findings feed...')).not.toBeInTheDocument())
+
+    const copyButton = screen.getByRole('button', { name: /Copy ID/i })
+    await userEvent.click(copyButton)
+
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith('f2'))
+    expect(copyButton).toHaveTextContent('Copy ID')
+  })
+
   it('persists review state to localStorage', async () => {
     const findings = [makeFinding({ id: 'f1', title: 'Persist Test', severity: 'high' })]
     vi.mocked(getFindings).mockResolvedValue({ findings })
