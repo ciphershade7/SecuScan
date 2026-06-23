@@ -134,6 +134,14 @@ describe('Reports — export buttons on a ready report', () => {
     expect(screen.getByRole('button', { name: /^csv$/i })).toBeInTheDocument()
   })
 
+  it('keeps the client-side rendered-PDF button distinct from the server export', async () => {
+    renderReports()
+    // The client-side PDF export (#1205) must carry its own accessible name so it
+    // does not collide with the server-side export "pdf" button below it.
+    expect(await screen.findByRole('button', { name: /rendered pdf/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^pdf$/i })).toBeInTheDocument()
+  })
+
   it('export buttons are enabled for a ready report', async () => {
     renderReports()
     await screen.findByRole('button', { name: /^pdf$/i })
