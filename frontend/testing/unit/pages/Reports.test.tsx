@@ -103,9 +103,10 @@ describe('Reports — empty state', () => {
     vi.mocked(getDashboardSummary).mockResolvedValue(emptySummary)
   })
 
-  it('shows Archive Isolated when there are no reports at all', async () => {
+  it('shows onboarding empty state when there are no reports at all', async () => {
     renderReports()
-    expect(await screen.findByText(/Archive Isolated/i)).toBeInTheDocument()
+    expect(await screen.findByText(/No Briefings Yet/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /launch_first_scan/i })).toBeInTheDocument()
   })
 
   it('shows Archive Isolated when filter returns no matching reports', async () => {
