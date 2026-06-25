@@ -561,14 +561,6 @@ class TaskExecutor:
         if not command:
             raise ValueError("Failed to build command")
 
-        # Validate all command arguments against safe-mode + network policy
-        from .validation import validate_command_network_egress
-        cmd_valid, cmd_err = validate_command_network_egress(
-            command, safe_mode, plugin_id, task_id
-        )
-        if not cmd_valid:
-            raise ValueError(f"Command network egress validation failed: {cmd_err}")
-
         # Apply Docker Sandboxing if enabled
         if settings.docker_enabled:
             await self._ensure_docker_network()
