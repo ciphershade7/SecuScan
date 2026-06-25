@@ -552,7 +552,6 @@ class TaskExecutor:
         plugin_id: str,
         target: str,
         inputs: Dict[str, Any],
-        safe_mode: bool,
     ) -> tuple[str, float, int]:
         """Execute a standard CLI/Docker plugin and persist findings/report."""
         plugin_manager = get_plugin_manager()
@@ -735,7 +734,6 @@ class TaskExecutor:
                     plugin_id=plugin_id,
                     target=target,
                     inputs=inputs,
-                    safe_mode=safe_mode,
                 )
 
             await self._dispatch_task_notifications(db, task_id)
