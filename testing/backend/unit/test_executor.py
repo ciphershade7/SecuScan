@@ -962,7 +962,7 @@ async def test_execute_standard_scanner(setup_test_environment):
             plugin=mock_plugin,
             plugin_id="mock_cli_plugin",
             target="127.0.0.1",
-            inputs={}
+            inputs={},
         )
 
     assert status == TaskStatus.COMPLETED.value
@@ -1010,4 +1010,150 @@ async def test_execute_task_aborts_when_task_deleted_before_running(setup_test_e
         await executor.execute_task(task_id)
 
     assert task_id not in executor.running_tasks
+    await db.disconnect()
+
+
+# ---------------------------------------------------------------------------
+# Regression: URL inputs must not be replaced with pinned IP
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_pinned_ip_does_not_replace_url_target(setup_test_environment):
+    await init_db(settings.database_path)
+    db = await get_db()
+
+    task_id = str(uuid.uuid4())
+    await db.execute(
+        """
+        INSERT INTO tasks (id, plugin_id, tool_name, target, inputs_json,
+                           status, consent_granted, safe_mode)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (task_id, "nmap", "nmap", "https://example.com/path",
+         '{"url":"https://example.com/path","target":"https://example.com/path"}',
+         TaskStatus.QUEUED.value, 1, 0)
+    )
+
+    executor = TaskExecutor()
+
+    mock_engine = MagicMock()
+    mock_engine.resolve_and_pin.return_value = ("93.184.216.34", True, "Allowed")
+
+    original_inputs_seen = {}
+
+    async def fake_execute_std_scanner(db, **kwargs):
+        original_inputs_seen.update(kwargs.get("inputs", {}))
+        return TaskStatus.COMPLETED.value, 0.5, 0
+
+    async def fake_command(*args, **kwargs):
+        return "80/tcp open http", 0
+
+    with patch("backend.secuscan.executor.settings") as mock_settings, \
+         patch("backend.secuscan.executor.get_policy_engine", return_value=mock_engine), \
+         patch.object(executor, "_execute_command", side_effect=fake_command), \
+         patch.object(executor, "_execute_standard_scanner", side_effect=fake_execute_std_scanner), \
+         patch("backend.secuscan.executor.concurrent_limiter") as mock_limiter, \
+         patch("backend.secuscan.executor.get_plugin_manager") as mock_pm:
+
+        mock_settings.enforce_network_policy = True
+        mock_settings.docker_enabled = False
+        mock_settings.raw_output_dir = settings.raw_output_dir
+        mock_settings.sandbox_timeout = 600
+        mock_settings.dns_resolution_timeout_seconds = "5.0"
+        mock_settings.network_policy_failure_mode = "block"
+
+        mock_limiter.release = AsyncMock()
+
+        mock_plugin = MagicMock()
+        mock_plugin.name = "nmap"
+        mock_plugin.presets = {}
+        mock_plugin.docker_image = None
+        mock_plugin.output = {"parser": "builtin_nmap", "format": "text"}
+        mock_plugin.category = "Network"
+        mock_plugin.id = "nmap"
+        mock_pm.return_value.get_plugin.return_value = mock_plugin
+        mock_pm.return_value.build_command.return_value = ["nmap", "https://example.com/path"]
+        mock_pm.return_value.plugins_dir = MagicMock()
+        mock_pm.return_value.plugins_dir.__truediv__ = MagicMock(
+            return_value=MagicMock(
+                __truediv__=MagicMock(return_value=MagicMock(exists=lambda: False))
+            )
+        )
+
+        await executor.execute_task(task_id)
+
+    assert original_inputs_seen.get("url") == "https://example.com/path"
+    assert original_inputs_seen.get("target") == "https://example.com/path"
+    assert original_inputs_seen.get("__pinned_ip") == "93.184.216.34"
+    mock_engine.resolve_and_pin.assert_called_once()
+    await db.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_pinned_ip_preserves_host_input_for_host_header_scanners(setup_test_environment):
+    await init_db(settings.database_path)
+    db = await get_db()
+
+    task_id = str(uuid.uuid4())
+    await db.execute(
+        """
+        INSERT INTO tasks (id, plugin_id, tool_name, target, inputs_json,
+                           status, consent_granted, safe_mode)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (task_id, "nmap", "nmap", "example.com",
+         '{"host":"example.com","domain":"example.com"}',
+         TaskStatus.QUEUED.value, 1, 0)
+    )
+
+    executor = TaskExecutor()
+    mock_engine = MagicMock()
+    mock_engine.resolve_and_pin.return_value = ("93.184.216.34", True, "Allowed")
+
+    original_inputs_seen = {}
+
+    async def fake_execute_std_scanner(db, **kwargs):
+        original_inputs_seen.update(kwargs.get("inputs", {}))
+        return TaskStatus.COMPLETED.value, 0.5, 0
+
+    async def fake_command(*args, **kwargs):
+        return "80/tcp open http", 0
+
+    with patch("backend.secuscan.executor.settings") as mock_settings, \
+         patch("backend.secuscan.executor.get_policy_engine", return_value=mock_engine), \
+         patch.object(executor, "_execute_command", side_effect=fake_command), \
+         patch.object(executor, "_execute_standard_scanner", side_effect=fake_execute_std_scanner), \
+         patch("backend.secuscan.executor.concurrent_limiter") as mock_limiter, \
+         patch("backend.secuscan.executor.get_plugin_manager") as mock_pm:
+
+        mock_settings.enforce_network_policy = True
+        mock_settings.docker_enabled = False
+        mock_settings.raw_output_dir = settings.raw_output_dir
+        mock_settings.sandbox_timeout = 600
+        mock_settings.dns_resolution_timeout_seconds = "5.0"
+        mock_settings.network_policy_failure_mode = "block"
+
+        mock_limiter.release = AsyncMock()
+
+        mock_plugin = MagicMock()
+        mock_plugin.name = "nmap"
+        mock_plugin.presets = {}
+        mock_plugin.docker_image = None
+        mock_plugin.output = {"parser": "builtin_nmap", "format": "text"}
+        mock_plugin.category = "Network"
+        mock_plugin.id = "nmap"
+        mock_pm.return_value.get_plugin.return_value = mock_plugin
+        mock_pm.return_value.build_command.return_value = ["nmap", "example.com"]
+        mock_pm.return_value.plugins_dir = MagicMock()
+        mock_pm.return_value.plugins_dir.__truediv__ = MagicMock(
+            return_value=MagicMock(
+                __truediv__=MagicMock(return_value=MagicMock(exists=lambda: False))
+            )
+        )
+
+        await executor.execute_task(task_id)
+
+    assert original_inputs_seen.get("host") == "example.com"
+    assert original_inputs_seen.get("domain") == "example.com"
+    assert original_inputs_seen.get("__pinned_ip") == "93.184.216.34"
     await db.disconnect()

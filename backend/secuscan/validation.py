@@ -655,7 +655,7 @@ def resolve_and_validate_target(url: str) -> Tuple[bool, str]:
     return True, ""
 
 
-def validate_command_network_egress(command: list[str], safe_mode: bool, plugin_id: str, task_id: str) -> Tuple[bool, str]:
+def validate_command_network_egress(command: list[str], safe_mode: bool, plugin_id: str, task_id: str, pinned_ip: Optional[str] = None) -> Tuple[bool, str]:
     """
     Inspect all command arguments. If any argument represents an outbound network
     destination (IP, hostname, URL), validate it against both Safe Mode and Network Policy.
@@ -734,8 +734,10 @@ def validate_command_network_egress(command: list[str], safe_mode: bool, plugin_
             # Validate against network policy
             if settings.enforce_network_policy:
                 engine = get_policy_engine()
+                check_ip = pinned_ip if (pinned_ip and is_host) else candidate
                 allowed, reason, _ = engine.check_access(
-                    dest_ip=candidate,
+                    dest_ip=check_ip,
+                    dest_hostname=candidate if is_host else None,
                     plugin_id=plugin_id,
                     task_id=task_id,
                 )
