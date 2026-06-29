@@ -60,51 +60,6 @@ def _parse_workflow_steps(raw_steps: Any) -> List[Dict[str, Any]]:
         normalized.append(model.model_dump())
     return normalized
 
-def _validate_and_parse_workflow_steps_payload(raw_steps: Any) -> List[Dict[str, Any]]:
-    if isinstance(raw_steps, list):
-        parsed = raw_steps
-    elif not raw_steps:
-        parsed = []
-    else:
-        try:
-            parsed = json.loads(raw_steps)
-        except (TypeError, json.JSONDecodeError):
-            raise HTTPException(status_code=400, detail="Invalid steps JSON format")
-
-    if not isinstance(parsed, list):
-        raise HTTPException(status_code=400, detail="Workflow steps must be a list")
-
-    normalized: List[Dict[str, Any]] = []
-    for step in parsed:
-        if not isinstance(step, dict):
-            raise HTTPException(status_code=400, detail="Each workflow step must be a JSON object")
-
-        plugin_id = step.get("plugin_id")
-        if not plugin_id or not isinstance(plugin_id, str) or not plugin_id.strip():
-            raise HTTPException(status_code=400, detail="plugin_id is required and must be a non-empty string")
-
-        try:
-            model = WorkflowStep(
-                plugin_id=plugin_id.strip(),
-                inputs=step.get("inputs") or {},
-                preset=step.get("preset"),
-                execution_context=step.get("execution_context") or {},
-            )
-        except Exception as exc:
-            raise HTTPException(status_code=400, detail=f"Invalid step configuration: {exc}")
-
-        normalized.append(model.model_dump())
-    return normalized
-
-def _validate_schedule_seconds(val: Any) -> Optional[int]:
-    if val is None:
-        return None
-    if type(val) is not int:
-        raise HTTPException(status_code=400, detail="schedule_seconds must be an integer")
-    if val < 1:
-        raise HTTPException(status_code=400, detail="schedule_seconds must be a positive integer >= 1")
-    return val
-
 def _serialize_workflow(row: Dict[str, Any], queued_task_ids: Optional[List[str]] = None) -> Dict[str, Any]:
     """Return the workflow shape consumed by the frontend."""
     return {
@@ -1870,7 +1825,7 @@ async def create_workflow(payload: Dict[str, Any], owner: str = Depends(get_curr
     if not name:
         raise HTTPException(status_code=400, detail="Workflow name is required")
 
-    steps = _validate_and_parse_workflow_steps_payload(payload.get("steps", []))
+    steps = _parse_workflow_steps(payload.get("steps", []))
     if not steps:
         raise HTTPException(status_code=400, detail="Workflow requires at least one step")
 
@@ -1883,9 +1838,7 @@ async def create_workflow(payload: Dict[str, Any], owner: str = Depends(get_curr
         schedule_timezone = schedule_timezone.strip()
 
     workflow_id = str(uuid.uuid4())
-    schedule_seconds = None
-    if "schedule_seconds" in payload:
-        schedule_seconds = _validate_schedule_seconds(payload["schedule_seconds"])
+    schedule_seconds = payload.get("schedule_seconds")
     enabled = bool(payload.get("enabled", True))
     db = await get_db()
     await db.execute(
@@ -1897,7 +1850,7 @@ async def create_workflow(payload: Dict[str, Any], owner: str = Depends(get_curr
             workflow_id,
             name,
             owner,
-            schedule_seconds,
+            int(schedule_seconds) if schedule_seconds else None,
             1 if enabled else 0,
             json.dumps(steps),
             schedule_timezone,
@@ -2067,11 +2020,11 @@ async def update_workflow(workflow_id: str, payload: Dict[str, Any], owner: str 
         params.append(str(payload["name"]).strip())
     if "steps" in payload:
         updates.append("steps_json = ?")
-        params.append(json.dumps(_validate_and_parse_workflow_steps_payload(payload["steps"])))
+        params.append(json.dumps(_parse_workflow_steps(payload["steps"])))
     if "schedule_seconds" in payload:
         val = payload["schedule_seconds"]
         updates.append("schedule_seconds = ?")
-        params.append(_validate_schedule_seconds(val))
+        params.append(int(val) if val else None)
     if "schedule_timezone" in payload:
         tz_val = payload["schedule_timezone"]
         if tz_val is not None:

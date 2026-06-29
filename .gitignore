@@ -109,6 +109,3 @@ backend/data/reports/*
 frontend/playwright-report/
 frontend/test-results/
 frontend/.vite/
-
-# API Key
-backend/data/.api_key
