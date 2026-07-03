@@ -1038,4 +1038,3 @@ async def process_slack_notification(db: Database, task_id: str) -> None:
             logger.warning("Failed to send Slack notification for task %s: %s", task_id, error)
     except Exception as exc:
         logger.error("Error sending Slack notification for task %s: %s", task_id, exc, exc_info=True)
-

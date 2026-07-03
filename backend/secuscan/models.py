@@ -372,4 +372,3 @@ class NotificationDiagnosticsResponse(BaseModel):
 class BulkDeleteRequest(RootModel[Annotated[List[str], Field(max_length=MAX_BULK_DELETE)]]):
     """Accepts a JSON array of task IDs directly. Max 500 per request."""
     pass
-

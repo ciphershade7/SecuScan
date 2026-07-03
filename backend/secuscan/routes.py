@@ -2762,4 +2762,3 @@ async def get_vault_diagnostics():
         "key_fingerprint": crypto.key_fingerprint,
         "fingerprint_algorithm": "sha256-trunc64",
     }
-

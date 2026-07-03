@@ -1084,4 +1084,3 @@ async def get_db() -> Database:
         raise RuntimeError("Database not initialized")
 
     return db
-

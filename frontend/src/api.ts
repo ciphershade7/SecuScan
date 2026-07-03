@@ -805,4 +805,3 @@ export function getAssetServices() {
 export function getKnowledgebaseStatus() {
   return request('/knowledgebase/status')
 }
-

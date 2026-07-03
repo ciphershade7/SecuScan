@@ -1907,4 +1907,3 @@ class TaskExecutor:
 
 # Global executor instance
 executor = TaskExecutor()
-

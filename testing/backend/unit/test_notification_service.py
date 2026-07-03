@@ -923,5 +923,3 @@ async def test_process_scan_completion_webhook_delivery_failure_is_swallowed(tes
         await process_scan_completion_webhook(test_db, task_id)
 
     assert mock_send.call_count == 1
-
-

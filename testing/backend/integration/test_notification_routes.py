@@ -318,4 +318,3 @@ def test_admin_diagnostics_notifications(test_client, monkeypatch):
     assert "backoff_factor_seconds" in data
     assert type(data["max_retries"]) is int
     assert type(data["webhook_timeout_seconds"]) is float
-
