@@ -3,41 +3,20 @@ import { NavLink, useLocation } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Background from './Background'
 import { useShortcuts } from '../hooks/useShortcuts'
+import { SidebarProvider, useSidebar } from '../context/SidebarContext'
 import { routes } from '../routes'
 
 interface AppShellProps {
     children: React.ReactNode
 }
 
-export default function AppShell({ children }: AppShellProps) {
+function AppShellInner({ children }: AppShellProps) {
     const { pathname } = useLocation()
-
-    useShortcuts()
+    const { isExpanded: sidebarExpanded, toggleSidebar } = useSidebar()
+    useShortcuts(toggleSidebar)
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const menuButtonRef = useRef<HTMLButtonElement>(null)
     const drawerRef = useRef<HTMLDivElement>(null)
-
-    const [sidebarExpanded, setSidebarExpanded] = useState(() => {
-        const saved = localStorage.getItem('sidebar-expanded')
-        return saved !== null ? JSON.parse(saved) : true
-    })
-
-    useEffect(() => {
-        const handleStorage = () => {
-            const saved = localStorage.getItem('sidebar-expanded')
-            if (saved !== null) setSidebarExpanded(JSON.parse(saved))
-        }
-        const handleSidebarChange = (e: Event) => {
-            const detail = (e as CustomEvent).detail
-            if (typeof detail === 'boolean') setSidebarExpanded(detail)
-        }
-        window.addEventListener('storage', handleStorage)
-        window.addEventListener('sidebar-state-changed', handleSidebarChange)
-        return () => {
-            window.removeEventListener('storage', handleStorage)
-            window.removeEventListener('sidebar-state-changed', handleSidebarChange)
-        }
-    }, [])
 
     useEffect(() => {
         setMobileMenuOpen(false)
@@ -96,7 +75,6 @@ export default function AppShell({ children }: AppShellProps) {
         { to: routes.findings, icon: 'emergency_home', label: 'Findings' },
         { to: routes.reports, icon: 'summarize', label: 'Reports' },
         { to: routes.workflows, icon: 'account_tree', label: 'Workflows' },
-        { to: routes.toolkit, icon: 'add_circle', label: 'Toolkit' },
     ]
     const mobileDrawerNav = [
         { to: routes.dashboard, label: 'Dashboard' },
@@ -107,7 +85,6 @@ export default function AppShell({ children }: AppShellProps) {
         { to: routes.toolkit, label: 'Toolkit' },
         { to: routes.settings, label: 'Settings' },
     ]
-
 
     return (
         <>
@@ -169,30 +146,38 @@ export default function AppShell({ children }: AppShellProps) {
                     </>
                 )}
 
-                <main 
-                    className="flex-1 overflow-auto transition-all duration-300 ease-in-out ml-0 lg:ml-[var(--sidebar-width)] pt-14 lg:pt-0 pb-16 lg:pb-0"
+                <main
+                    className="flex-1 overflow-auto transition-all duration-300 ease-in-out ml-0 lg:ml-[var(--sidebar-width)] pt-14 lg:pt-0 pb-20 lg:pb-0"
                     style={{ '--sidebar-width': `${desktopSidebarWidth}px` } as React.CSSProperties}
                 >
                     {children}
                 </main>
 
-                <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 h-16 bg-[var(--bg-secondary)] border-t border-accent-silver/10 grid grid-cols-5">
+                <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 h-16 bg-[var(--bg-secondary)] border-t border-accent-silver/10 grid grid-cols-5 px-1 pb-safe">
                     {mobilePrimaryNav.map((item) => (
                         <NavLink
                             key={item.to}
                             to={item.to}
                             className={({ isActive }) =>
-                                `flex flex-col items-center justify-center gap-1 text-[9px] font-bold uppercase tracking-[0.08em] ${
+                                `flex flex-col items-center justify-center gap-1 text-[8px] sm:text-[9px] font-bold uppercase tracking-wider overflow-hidden my-1 mx-0.5 rounded-md ${
                                     isActive ? 'text-rag-red bg-rag-red/10' : 'text-silver/70'
                                 }`
                             }
                         >
                             <span className="material-symbols-outlined text-[18px]">{item.icon}</span>
-                            <span>{item.label}</span>
+                            <span className="truncate w-full text-center px-0.5">{item.label}</span>
                         </NavLink>
                     ))}
                 </nav>
             </div>
         </>
+    )
+}
+
+export default function AppShell({ children }: AppShellProps) {
+    return (
+        <SidebarProvider>
+            <AppShellInner>{children}</AppShellInner>
+        </SidebarProvider>
     )
 }

@@ -290,6 +290,7 @@ ON credential_vault(owner_id);
                 name TEXT NOT NULL,
                 owner_id TEXT NOT NULL DEFAULT 'default',
                 schedule_seconds INTEGER,
+                schedule_timezone TEXT,
                 enabled BOOLEAN NOT NULL DEFAULT 1,
                 steps_json TEXT NOT NULL DEFAULT '[]',
                 created_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),
@@ -345,6 +346,16 @@ ON credential_vault(owner_id);
                 status TEXT NOT NULL,
                 error_message TEXT,
                 sent_at TIMESTAMP NOT NULL DEFAULT (datetime('now'))
+            );
+
+            -- Per-owner webhook fired on scan completion/failure (issue #1615).
+            -- Distinct from notification_rules, which fires per-finding above a
+            -- severity threshold; this fires once per scan regardless of severity.
+            CREATE TABLE IF NOT EXISTS scan_webhook_settings (
+                owner_id TEXT PRIMARY KEY,
+                webhook_url TEXT NOT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),
+                updated_at TIMESTAMP NOT NULL DEFAULT (datetime('now'))
             );
 
             -- Tasks indexes (existing)
@@ -584,6 +595,7 @@ ON credential_vault(owner_id);
                 await self.execute(
                     "ALTER TABLE workflows ADD COLUMN owner_id TEXT NOT NULL DEFAULT 'default'"
                 )
+                existing_wf_cols.add("owner_id")
                 print("Added missing column 'owner_id' to workflows table.")
             except Exception as e:
                 print(f"Failed to add 'owner_id' to workflows: {e}")
@@ -634,6 +646,16 @@ ON credential_vault(owner_id);
                     if old_fk:
                         await self.execute("PRAGMA foreign_keys = ON")
 
+        # Workflows table migration: ensure schedule_timezone exists
+        if "schedule_timezone" not in existing_wf_cols:
+            try:
+                await self.execute(
+                    "ALTER TABLE workflows ADD COLUMN schedule_timezone TEXT"
+                )
+                print("Added missing column 'schedule_timezone' to workflows table.")
+            except Exception as e:
+                print(f"Failed to add 'schedule_timezone' to workflows: {e}")
+
         # Notification rules table migration: ensure owner_id exists
         notif_columns = await self.fetchall("PRAGMA table_info(notification_rules)")
         existing_notif_cols = {col["name"] for col in notif_columns}
@@ -646,6 +668,25 @@ ON credential_vault(owner_id);
             except Exception as e:
                 print(f"Failed to add 'owner_id' to notification_rules: {e}")
 
+        # Notification history table migration: ensure owner_id exists (BOLA fix, issue #1483)
+        notif_hist_columns = await self.fetchall("PRAGMA table_info(notification_history)")
+        existing_notif_hist_cols = {col["name"] for col in notif_hist_columns}
+        if "owner_id" not in existing_notif_hist_cols:
+            try:
+                await self.execute(
+                    "ALTER TABLE notification_history ADD COLUMN owner_id TEXT"
+                )
+                # Backfill owner_id from notification_rules for existing rows
+                await self.execute(
+                    "UPDATE notification_history SET owner_id = ("
+                    "SELECT nr.owner_id FROM notification_rules nr "
+                    "WHERE nr.id = notification_history.rule_id"
+                    ") WHERE owner_id IS NULL"
+                )
+                print("Added missing column 'owner_id' to notification_history table.")
+            except Exception as e:
+                print(f"Failed to add 'owner_id' to notification_history: {e}")
+
         # Owner indexes must run after ALTER TABLE backfills owner_id on legacy DBs.
         await self.connection.executescript(
             """
@@ -655,6 +696,7 @@ ON credential_vault(owner_id);
             CREATE INDEX IF NOT EXISTS idx_credential_vault_owner ON credential_vault(owner_id);
             CREATE INDEX IF NOT EXISTS idx_workflows_owner ON workflows(owner_id);
             CREATE INDEX IF NOT EXISTS idx_notification_rules_owner ON notification_rules(owner_id);
+            CREATE INDEX IF NOT EXISTS idx_notification_history_owner ON notification_history(owner_id);
             """
             )
 
@@ -843,6 +885,7 @@ ON credential_vault(owner_id);
         enabled: bool,
         steps: List[Dict],
         created_by: str = "system",
+        schedule_timezone: Optional[str] = None,
     ) -> Dict:
         """Snapshot the current workflow definition as a new version row.
 
@@ -859,6 +902,7 @@ ON credential_vault(owner_id);
         definition = {
             "name": name,
             "schedule_seconds": schedule_seconds,
+            "schedule_timezone": schedule_timezone,
             "enabled": enabled,
             "steps": steps,
         }

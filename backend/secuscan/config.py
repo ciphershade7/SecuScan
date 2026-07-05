@@ -59,6 +59,8 @@ class Settings(BaseSettings):
     cors_allow_credentials: bool = True
     plugin_signature_key: Optional[str] = None
     enforce_plugin_signatures: bool = False
+    enforce_parser_integrity: bool = True
+    parser_hash_algorithm: str = "sha256"
     vault_key: Optional[str] = None
     denied_capabilities: List[str] = []
     admin_api_key: Optional[str] = None
@@ -175,6 +177,10 @@ class Settings(BaseSettings):
 
     # Slack Webhook Configuration
     slack_webhook_url: Optional[str] = None
+
+    # Public base URL used to build absolute links (e.g. report links) in
+    # outbound notifications. Leave blank to emit relative paths.
+    public_base_url: str = ""
 
     class Config:
         env_prefix = "SECUSCAN_"
