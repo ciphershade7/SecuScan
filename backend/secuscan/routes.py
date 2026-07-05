@@ -97,6 +97,7 @@ from .models import (
     NotificationChannelType, TaskStatus,
     ExecutionContext, WorkflowStep, ValidationMode, EvidenceLevel,
     NotificationDiagnosticsResponse,
+    ScanWebhookSettingsRequest, ScanWebhookSettingsResponse,
 )
 from .config import settings
 from .database import get_db
@@ -2365,6 +2366,54 @@ async def delete_notification_rule(rule_id: str, owner: str = Depends(get_curren
     await _verify_notification_rule_owner(db, rule_id, owner)
     await db.execute("DELETE FROM notification_rules WHERE id = ?", (rule_id,))
     return {"rule_id": rule_id, "deleted": True}
+
+
+@router.get("/settings/webhook")
+async def get_scan_webhook_settings(owner: str = Depends(get_current_owner)):
+    """Return the configured scan-completion webhook for the current owner.
+
+    Fires on scan completion/failure (issue #1615) — distinct from the
+    per-finding severity-threshold rules under /notifications/rules.
+    """
+    db = await get_db()
+    row = await db.fetchone(
+        "SELECT * FROM scan_webhook_settings WHERE owner_id = ?",
+        (owner,),
+    )
+    if not row:
+        return {"webhook_url": None, "platform": None, "configured": False, "updated_at": None}
+    webhook_url = row["webhook_url"]
+    return {
+        "webhook_url": webhook_url,
+        "platform": notification_service.detect_webhook_platform(webhook_url),
+        "configured": True,
+        "updated_at": row.get("updated_at"),
+    }
+
+
+@router.put("/settings/webhook")
+async def upsert_scan_webhook_settings(
+    payload: ScanWebhookSettingsRequest,
+    owner: str = Depends(get_current_owner),
+):
+    """Create or update the scan-completion webhook URL for the current owner."""
+    target = _validate_notification_target(NotificationChannelType.WEBHOOK, payload.webhook_url)
+    db = await get_db()
+    row = await notification_service.set_scan_webhook_url(db, owner, target)
+    return {
+        "webhook_url": row["webhook_url"],
+        "platform": notification_service.detect_webhook_platform(row["webhook_url"]),
+        "configured": True,
+        "updated_at": row.get("updated_at"),
+    }
+
+
+@router.delete("/settings/webhook")
+async def delete_scan_webhook_settings(owner: str = Depends(get_current_owner)):
+    """Remove the scan-completion webhook URL for the current owner."""
+    db = await get_db()
+    deleted = await notification_service.delete_scan_webhook_url(db, owner)
+    return {"deleted": deleted}
 
 
 @router.get("/notifications/history", dependencies=[Depends(read_heavy_limiter)])
