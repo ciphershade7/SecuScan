@@ -12,7 +12,7 @@ import {
     Pdf02Icon,
     Refresh01Icon,
 } from '@hugeicons/core-free-icons'
-import { API_BASE, getPluginSchema, getTaskResult, getTaskStatus, PluginFieldSchema, PluginSchemaResponse, startTask, ExecutionContext } from '../api'
+import { API_BASE, getPluginSchema, getTaskResult, getTaskStatus, PluginFieldSchema, PluginSchemaResponse, startTask, ExecutionContext, EvidenceRecord, AssetServiceRecord } from '../api'
 import { useTaskSubscription } from '../hooks/useTaskSubscription'
 import { routes, routePath } from '../routes'
 import { parseDateSafe, formatDateLong, formatLocaleTime } from '../utils/date'
@@ -43,7 +43,7 @@ interface Task {
     duration_seconds?: number
     exit_code?: number
     error_message?: string
-    inputs?: Record<string, any>
+    inputs?: Record<string, unknown>
     preset?: string
     execution_context?: ExecutionContext
     queue_position?: number
@@ -74,7 +74,7 @@ interface Finding {
     cve?: string
     proof?: string
     discovered_at?: string
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
     risk_score?: number
     risk_factors?: RiskFactor[]
     exploitability?: number
@@ -82,7 +82,7 @@ interface Finding {
     validated?: boolean
     validation_method?: string
     confidence_reason?: string
-    evidence?: Array<Record<string, any>>
+    evidence?: EvidenceRecord[]
     asset_refs?: string[]
     finding_kind?: string
     occurrence_count?: number
@@ -94,7 +94,7 @@ interface Finding {
     last_seen_at?: string
     service_fingerprint?: string
     cpe?: string
-    references?: Array<Record<string, any>>
+    references?: Array<Record<string, unknown>>
     asset_exposure?: string
 }
 
@@ -120,7 +120,7 @@ interface AssetSummaryEntry {
     finding_count?: number
     validated_count?: number
     highest_severity?: string
-    services?: Array<Record<string, any>>
+    services?: AssetServiceRecord[]
 }
 
 interface ScanDiff {
@@ -150,8 +150,10 @@ interface TaskResult {
     asset_summary?: AssetSummaryEntry[]
     scan_diff?: ScanDiff
     structured?: {
-        rows?: Array<Record<string, any>>
-        [key: string]: any
+        rows?: Array<Record<string, unknown>>
+        findings?: Finding[]
+        total_count?: number
+        [key: string]: unknown
     }
     raw_output_path?: string
     raw_output?: string
@@ -1240,7 +1242,7 @@ export default function TaskDetails() {
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {tableRows.map((row: any, idx: number) => {
+                                                    {tableRows.map((row: Record<string, unknown>, idx: number) => {
                                                         const isExpanded = expandedDiscoveryRows[idx];
                                                         return (
                                                             <tr key={idx} className="border-b border-white/5 last:border-0 hover:bg-white/[0.03] transition-colors group">
