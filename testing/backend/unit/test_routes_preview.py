@@ -18,7 +18,7 @@ def client_with_key(setup_test_environment):
 def test_preview_command_endpoint(client_with_key):
     client, api_key = client_with_key
     headers = {"X-API-Key": api_key}
-    
+
     # Try with a valid plugin (http_inspector) and vault reference
     response = client.post(
         "/api/v1/plugin/http_inspector/preview",
@@ -35,7 +35,7 @@ def test_preview_command_endpoint(client_with_key):
 def test_preview_command_missing_required(client_with_key):
     client, api_key = client_with_key
     headers = {"X-API-Key": api_key}
-    
+
     # Missing 'url' field which is required for http_inspector
     response = client.post(
         "/api/v1/plugin/http_inspector/preview",

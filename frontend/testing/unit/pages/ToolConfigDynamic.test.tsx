@@ -353,4 +353,3 @@ describe('ToolConfig dynamic schema flow', () => {
     expect(await screen.findByText(/Fix highlighted validation errors to preview command./i)).toBeInTheDocument()
   })
 })
-
