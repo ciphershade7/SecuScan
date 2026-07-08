@@ -1,5 +1,5 @@
 import CopyToClipboard from '../components/CopyToClipboard';
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, type ComponentProps } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { HugeiconsIcon } from '@hugeicons/react'
@@ -282,7 +282,7 @@ function DetailIcon({
     size = 18,
     className = '',
 }: {
-    icon: any
+    icon: ComponentProps<typeof HugeiconsIcon>['icon']
     size?: number
     className?: string
 }) {
@@ -649,7 +649,7 @@ export default function TaskDetails() {
             ? `${Math.floor(task.duration_seconds / 60)}M ${Math.floor(task.duration_seconds % 60)}S`
             : (task.status === 'completed' ? '0M 0S' : 'TERMINATED'))
         : 'ACTIVE'
-    const severityCounts = result?.severity_counts || findings.reduce((acc: Record<string, number>, finding: any) => {
+    const severityCounts = result?.severity_counts || findings.reduce((acc: Record<string, number>, finding: Finding) => {
         const key = (finding.severity || 'info').toLowerCase()
         acc[key] = (acc[key] || 0) + 1
         return acc
@@ -1073,7 +1073,7 @@ export default function TaskDetails() {
                                     </div>
                                     {previewFindings.length > 0 ? (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            {previewFindings.map((f: any, idx: number) => (
+                                            {previewFindings.map((f: Finding, idx: number) => (
                                                 <div
                                                     key={idx}
                                                     onClick={() => setSelectedFinding(f)}
@@ -1240,7 +1240,7 @@ export default function TaskDetails() {
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {tableRows.map((row: any, idx: number) => {
+                                                    {tableRows.map((row: Record<string, unknown>, idx: number) => {
                                                         const isExpanded = expandedDiscoveryRows[idx];
                                                         return (
                                                             <tr key={idx} className="border-b border-white/5 last:border-0 hover:bg-white/[0.03] transition-colors group">
