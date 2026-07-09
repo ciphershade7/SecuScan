@@ -567,6 +567,17 @@ export function getTaskDiff(taskId: string): Promise<ScanDiff> {
   return request<ScanDiff>(`/task/${taskId}/diff`)
 }
 
+export function previewCommand(
+  plugin_id: string,
+  inputs: Record<string, unknown>,
+): Promise<{ command: string[] }> {
+  return request<{ command: string[] }>(`/plugin/${plugin_id}/preview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ inputs }),
+  })
+}
+
 export function startTask(
   plugin_id: string,
   inputs: ScanInputs,
