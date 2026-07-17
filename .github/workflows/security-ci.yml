@@ -1,0 +1,249 @@
+name: Security CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  security-lint:
+    name: Python Security Linting (Bandit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install bandit
+        run: pip install bandit[toml]
+      - name: Run bandit security linter
+        run: bandit -r backend/secuscan -f json -o bandit-report.json --severity-level medium || true
+      - name: Check for high-severity findings
+        run: |
+          python -c "
+          import json, sys
+          with open('bandit-report.json') as f:
+              data = json.load(f)
+          high = [r for r in data.get('results', []) if r.get('issue_severity') == 'HIGH']
+          if high:
+              print(f'::error::Found {len(high)} HIGH severity security issues')
+              for r in high:
+                  print(f\"  - {r['filename']}:{r['line_number']}: {r['issue_text']}\")
+              sys.exit(1)
+          print('No HIGH severity issues found')
+          "
+      - name: Upload bandit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-report
+          path: bandit-report.json
+
+  auth-protection-check:
+    name: Route Authentication Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check all API routers have authentication
+        run: |
+          python -c "
+          import re, sys, ast
+          from pathlib import Path
+
+          # Find all router definitions in backend/secuscan
+          vulns = []
+          for py_file in Path('backend/secuscan').rglob('*.py'):
+              content = py_file.read_text()
+              # Find APIRouter() calls without dependencies containing require_api_key
+              router_pattern = re.compile(r'APIRouter\((.*?)\)', re.DOTALL)
+              for match in router_pattern.finditer(content):
+                  args = match.group(1)
+                  if 'tags' in args and 'auth' not in args.lower() and 'health' not in args.lower():
+                      if 'dependencies' not in args or 'require_api_key' not in args:
+                          line_num = content[:match.start()].count('\n') + 1
+                          vulns.append(f'  {py_file}:{line_num} - Router missing require_api_key dependency')
+
+          if vulns:
+              print('::warning::API routers without authentication dependency:')
+              for v in vulns:
+                  print(v)
+              print()
+              print('If these are intentional (e.g., health check), ignore this warning.')
+              print('Otherwise, add: dependencies=[Depends(require_api_key)]')
+          else:
+              print('All API routers have authentication dependencies')
+          "
+
+  debug-mode-check:
+    name: Debug Mode Default Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verify debug mode is off by default
+        run: |
+          python -c "
+          import re, sys
+          from pathlib import Path
+
+          issues = []
+          for py_file in Path('backend/secuscan').rglob('*.py'):
+              content = py_file.read_text()
+              for i, line in enumerate(content.splitlines(), 1):
+                  # Check for debug=True defaults
+                  if re.search(r'debug\s*[=:]\s*True', line) and 'if' not in line and '#' not in line.split('debug')[0]:
+                      issues.append(f'{py_file}:{i}: debug defaults to True')
+                  # Check for traceback.format_exc in responses
+                  if 'traceback.format_exc' in line and 'settings.debug' not in content.split(line)[max(0, content.split(line)[0].rfind('if')):]:
+                      issues.append(f'{py_file}:{i}: traceback exposed without debug check')
+
+          if issues:
+              print('::error::Debug mode security issues found:')
+              for i in issues:
+                  print(f'  {i}')
+              sys.exit(1)
+          print('Debug mode defaults verified safe')
+          "
+
+  secret-scan:
+    name: Hardcoded Secret Detection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan for hardcoded secrets
+        run: |
+          python -c "
+          import re, sys
+          from pathlib import Path
+
+          # Patterns that indicate hardcoded secrets
+          patterns = [
+              (r'password\s*=\s*[\"'][^\"']+[\"']', 'Hardcoded password'),
+              (r'api_key\s*=\s*[\"'][A-Za-z0-9]{20,}[\"']', 'Hardcoded API key'),
+              (r'secret\s*=\s*[\"'][^\"']+[\"']', 'Hardcoded secret'),
+              (r'token\s*=\s*[\"'][A-Za-z0-9]{20,}[\"']', 'Hardcoded token'),
+              (r'POSTGRES_PASSWORD\s*:\s*[\"']?secuscan[\"']?', 'Default DB password'),
+          ]
+
+          # Skip patterns
+          skip_files = {'.env.example', 'conftest.py', 'test_', 'pytest'}
+          skip_lines = ['# ', 'Example:', 'example:', 'default', 'replace-with']
+
+          issues = []
+          for py_file in Path('backend').rglob('*.py'):
+              if any(s in py_file.name for s in skip_files):
+                  continue
+              content = py_file.read_text()
+              for i, line in enumerate(content.splitlines(), 1):
+                  if any(s in line for s in skip_lines):
+                      continue
+                  for pattern, desc in patterns:
+                      if re.search(pattern, line, re.IGNORECASE):
+                          issues.append(f'{py_file}:{i}: {desc}')
+
+          # Also check docker-compose.yml
+          for yml in Path('.').glob('docker-compose*.yml'):
+              content = yml.read_text()
+              for i, line in enumerate(content.splitlines(), 1):
+                  if 'POSTGRES_PASSWORD' in line and ('secuscan' in line or 'password' in line.lower()):
+                      if '${' not in line:  # env var references are OK
+                          issues.append(f'{yml}:{i}: Default database password in compose file')
+
+          if issues:
+              print('::warning::Potential hardcoded secrets found:')
+              for i in issues:
+                  print(f'  {i}')
+              print()
+              print('Review these findings. False positives are possible.')
+          else:
+              print('No hardcoded secrets detected')
+          "
+
+  env-config-check:
+    name: Environment Config Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate .env.example safe defaults
+        run: |
+          python -c "
+          import sys
+          from pathlib import Path
+
+          env_file = Path('.env.example')
+          if not env_file.exists():
+              print('.env.example not found, skipping')
+              sys.exit(0)
+
+          content = env_file.read_text()
+          issues = []
+
+          checks = [
+              ('SECUSCAN_DEBUG=true', 'SECUSCAN_DEBUG should default to false for safety'),
+              ('SECUSCAN_VAULT_KEY=replace-with', 'VAULT_KEY placeholder not replaced with generation instruction'),
+          ]
+
+          for bad, msg in checks:
+              if bad in content:
+                  issues.append(msg)
+
+          if issues:
+              print('::warning::.env.example configuration issues:')
+              for i in issues:
+                  print(f'  - {i}')
+          else:
+              print('.env.example configuration validated')
+          "
+
+  dependency-audit:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install pip-audit
+        run: pip install pip-audit
+      - name: Audit Python dependencies
+        run: |
+          pip-audit -r backend/requirements.txt --desc --format json > dep-audit.json || true
+          python -c "
+          import json, sys
+          with open('dep-audit.json') as f:
+              data = json.load(f)
+          vulns = data.get('dependencies', [])
+          critical = []
+          for dep in vulns:
+              for v in dep.get('vulns', []):
+                  sev = v.get('fix_versions', [])
+                  if sev:
+                      critical.append(f\"{dep['name']}=={dep['version']}: {v.get('id', 'unknown')}\")
+          if critical:
+              print(f'::warning::Found {len(critical)} vulnerable dependencies:')
+              for c in critical[:10]:
+                  print(f'  {c}')
+          else:
+              print('No known vulnerable dependencies found')
+          "
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dep-audit-report
+          path: dep-audit.json
