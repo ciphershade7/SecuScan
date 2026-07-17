@@ -4,12 +4,17 @@ import json
 import uuid
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
+from .auth import require_api_key
 from .database import get_db
 
-saved_views_router = APIRouter(prefix="/api/v1/saved-views", tags=["saved-views"])
+saved_views_router = APIRouter(
+    prefix="/api/v1/saved-views",
+    tags=["saved-views"],
+    dependencies=[Depends(require_api_key)],
+)
 
 _VALID_SORT_MODES = {"severity", "newest", "oldest", "target"}
 _VALID_SEVERITIES = {"all", "critical", "high", "medium", "low", "info"}
