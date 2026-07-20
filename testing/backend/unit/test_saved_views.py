@@ -8,11 +8,17 @@ from httpx import AsyncClient, ASGITransport
 from fastapi import FastAPI
 from backend.secuscan.saved_views import saved_views_router
 from backend.secuscan.database import Database, get_db
+from backend.secuscan.auth import require_api_key
 import backend.secuscan.database as _db_module
 from pathlib import Path
 
 
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
+
+async def _mock_require_api_key() -> str:
+    """Mock auth dependency that always succeeds."""
+    return "test-owner-id"
+
 
 @pytest_asyncio.fixture
 async def app_client():
@@ -25,9 +31,12 @@ async def app_client():
     await test_db.connect()
     _db_module.db = test_db
 
-    # Minimal app
+    # Minimal app with auth override
     _app = FastAPI()
     _app.include_router(saved_views_router)
+    
+    # Override auth dependency to bypass authentication in tests
+    _app.dependency_overrides[require_api_key] = _mock_require_api_key
 
     transport = ASGITransport(app=_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
