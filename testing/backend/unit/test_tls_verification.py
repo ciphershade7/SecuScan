@@ -148,14 +148,15 @@ class TestAPIScannerVerifySsl:
 
         with patch("backend.secuscan.scanners.api_scanner.httpx.AsyncClient", return_value=mock_client) as mock_cls:
             with patch("backend.secuscan.scanners.api_scanner.settings") as mock_settings:
-                mock_settings.verify_ssl = True
-                with patch.object(scanner, "_fetch_spec", return_value=None):
-                    with patch.object(scanner, "_probe_graphql", return_value=([], [])):
-                        await scanner.run("https://example.com", {})
+                with patch("backend.secuscan.scanners.api_scanner.crawl_target", return_value={"api_hints": []}):
+                    mock_settings.verify_ssl = True
+                    with patch.object(scanner, "_fetch_spec", return_value=None):
+                        with patch.object(scanner, "_probe_graphql", return_value=([], [])):
+                            await scanner.run("https://example.com", {})
 
-                        mock_cls.assert_called()
-                        _, kwargs = mock_cls.call_args
-                        assert kwargs["verify"] is True
+                            mock_cls.assert_called()
+                            _, kwargs = mock_cls.call_args
+                            assert kwargs["verify"] is True
 
     @pytest.mark.asyncio
     async def test_api_scanner_verify_ssl_false_when_disabled(self):
@@ -173,13 +174,14 @@ class TestAPIScannerVerifySsl:
 
         with patch("backend.secuscan.scanners.api_scanner.httpx.AsyncClient", return_value=mock_client) as mock_cls:
             with patch("backend.secuscan.scanners.api_scanner.settings") as mock_settings:
-                mock_settings.verify_ssl = False
-                with patch.object(scanner, "_fetch_spec", return_value=None):
-                    with patch.object(scanner, "_probe_graphql", return_value=([], [])):
-                        await scanner.run("https://example.com", {})
+                with patch("backend.secuscan.scanners.api_scanner.crawl_target", return_value={"api_hints": []}):
+                    mock_settings.verify_ssl = False
+                    with patch.object(scanner, "_fetch_spec", return_value=None):
+                        with patch.object(scanner, "_probe_graphql", return_value=([], [])):
+                            await scanner.run("https://example.com", {})
 
-                        _, kwargs = mock_cls.call_args
-                        assert kwargs["verify"] is False
+                            _, kwargs = mock_cls.call_args
+                            assert kwargs["verify"] is False
 
 
 # ---------------------------------------------------------------------------
