@@ -21,12 +21,15 @@ Fallback:
 """
 
 import logging
+import ipaddress
 import time
 from collections import defaultdict
 from typing import Dict, List, Optional
 
 import redis.asyncio as aioredis
 from fastapi import HTTPException, Request, status
+
+from .config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -70,14 +73,25 @@ class ScanRateLimiter:
     def _get_client_ip(self, request: Request) -> str:
         """
         Extract the real client IP.
-        Checks X-Forwarded-For first (for reverse-proxy / Docker deployments),
-        falls back to direct connection address.
+        Only trusts X-Forwarded-For when the direct client is a trusted proxy,
+        then falls back to the direct connection address.
         """
-        forwarded_for = request.headers.get("X-Forwarded-For")
-        if forwarded_for:
-            # X-Forwarded-For can be a comma-separated list; take the first
-            return forwarded_for.split(",")[0].strip()
-        return request.client.host if request.client else "unknown"
+        client_ip = request.client.host if request.client else None
+        trusted_proxies = settings.trusted_proxies or []
+
+        if client_ip and client_ip in trusted_proxies:
+            forwarded_for = request.headers.get("X-Forwarded-For")
+            if forwarded_for:
+                # X-Forwarded-For can be a comma-separated list; take the first
+                forwarded_ip = forwarded_for.split(",", 1)[0].strip()
+                if forwarded_ip:
+                    try:
+                        ipaddress.ip_address(forwarded_ip)
+                        return forwarded_ip
+                    except ValueError:
+                        pass
+
+        return client_ip or "unknown_client"
 
     def _make_key(self, ip: str, window_type: str, window_value: int) -> str:
         """Build a namespaced Redis key for this IP and time window."""

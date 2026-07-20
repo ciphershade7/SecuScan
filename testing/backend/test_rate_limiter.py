@@ -218,12 +218,65 @@ class TestScanRateLimiterIPExtraction:
             burst_limit=10,
             burst_window=3600,
         )
-        # Simulate multi-hop X-Forwarded-For
+        # Simulate multi-hop X-Forwarded-For from a trusted proxy
         request = _make_mock_request_forwarded("203.0.113.5, 10.0.0.1, 172.16.0.1")
-        await limiter.check(request)
+
+        with patch("backend.secuscan.rate_limiter.settings.trusted_proxies", ["127.0.0.1", "10.0.0.1"]):
+            await limiter.check(request)
 
         incr_calls = str(pipe.incr.call_args_list)
         assert "203.0.113.5" in incr_calls
+
+    @pytest.mark.asyncio
+    async def test_ignores_malformed_forwarded_for_and_uses_proxy_ip_fallback(self):
+        mock_redis = AsyncMock()
+        pipe = AsyncMock()
+        pipe.execute = AsyncMock(return_value=[1, True])
+        mock_redis.pipeline = MagicMock(return_value=pipe)
+
+        limiter = ScanRateLimiter(
+            redis_client=mock_redis,
+            rate_limit=5,
+            rate_window=60,
+            burst_limit=10,
+            burst_window=3600,
+        )
+
+        request = _make_mock_request(ip="10.0.0.1")
+        request.client.host = "10.0.0.1"
+        request.headers = {"X-Forwarded-For": "not-an-ip"}
+
+        with patch("backend.secuscan.rate_limiter.settings.trusted_proxies", ["10.0.0.1"]):
+            await limiter.check(request)
+
+        incr_calls = str(pipe.incr.call_args_list)
+        assert "10.0.0.1" in incr_calls
+        assert "not-an-ip" not in incr_calls
+
+    @pytest.mark.asyncio
+    async def test_ignores_forwarded_for_from_untrusted_proxy(self):
+        mock_redis = AsyncMock()
+        pipe = AsyncMock()
+        pipe.execute = AsyncMock(return_value=[1, True])
+        mock_redis.pipeline = MagicMock(return_value=pipe)
+
+        limiter = ScanRateLimiter(
+            redis_client=mock_redis,
+            rate_limit=5,
+            rate_window=60,
+            burst_limit=10,
+            burst_window=3600,
+        )
+        request = _make_mock_request(ip="198.51.100.2")
+        request.client.host = "198.51.100.2"
+        request.headers = {"X-Forwarded-For": "203.0.113.5, 10.0.0.1"}
+
+        with patch("backend.secuscan.rate_limiter.settings.trusted_proxies", ["127.0.0.1", "10.0.0.1"]):
+            await limiter.check(request)
+
+        incr_calls = str(pipe.incr.call_args_list)
+        assert "198.51.100.2" in incr_calls
+        assert "203.0.113.5" not in incr_calls
 
 
 class TestScanRateLimiterRedisError:
