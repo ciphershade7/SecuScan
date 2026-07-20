@@ -72,7 +72,7 @@ def _parse_timestamp(raw: Any) -> str:
 
 def _stable_id(prefix: str, *parts: Any) -> str:
     material = "||".join(str(part or "").strip().lower() for part in parts)
-    digest = hashlib.sha1(material.encode("utf-8")).hexdigest()[:16]
+    digest = hashlib.sha1(material.encode("utf-8"), usedforsecurity=False).hexdigest()[:16]
     return f"{prefix}:{digest}"
 
 
