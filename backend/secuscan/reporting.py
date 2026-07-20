@@ -4,7 +4,7 @@ import html
 import io
 import json
 import re
-from .redaction import redact, redact_dict
+from .redaction import redact, redact_dict, _redact_value
 from .ai_summary import generate_summary
 from datetime import datetime, timezone
 from functools import lru_cache
@@ -203,7 +203,7 @@ class ReportGenerator:
             "title": cls._clean_text(finding.get("title")) or "Untitled finding",
             "category": cls._clean_text(finding.get("category")) or "General",
             "severity": cls._clean_text(finding.get("severity") or "info").upper(),
-            "target": cls._clean_text(finding.get("target")),
+            "target": redact(cls._clean_text(finding.get("target"))),
             "description": redact(cls._clean_text(finding.get("description")) or "No description was provided."),
             "remediation": redact(cls._clean_text(finding.get("remediation"))),
             "proof": redact(cls._clean_text(finding.get("proof"))),
@@ -216,7 +216,7 @@ class ReportGenerator:
             "service_fingerprint": cls._clean_text(finding.get("service_fingerprint")),
             "cpe": cls._clean_text(finding.get("cpe")),
             "discovered_at": cls._clean_text(finding.get("discovered_at")),
-            "evidence": finding.get("evidence", []) if isinstance(finding.get("evidence"), list) else [],
+            "evidence": _redact_value(finding.get("evidence", [])) if isinstance(finding.get("evidence"), list) else [],
             "asset_refs": finding.get("asset_refs", []) if isinstance(finding.get("asset_refs"), list) else [],
             "references": finding.get("references", []) if isinstance(finding.get("references"), list) else [],
             "metadata": redact_dict({cls._clean_text(key): cls._clean_text(val) for key, val in metadata.items()}),
