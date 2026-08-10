@@ -1258,13 +1258,6 @@ class TaskExecutor:
             "service_fingerprint": fingerprint,
         }
 
-    def _build_severity_counts(self, findings: List[Dict[str, Any]]) -> Dict[str, int]:
-        severity_counts: Dict[str, int] = {}
-        for finding in findings:
-            severity = str(finding.get("severity", "info")).lower()
-            severity_counts[severity] = severity_counts.get(severity, 0) + 1
-        return severity_counts
-
     async def _build_result_contract(
         self,
         db,
