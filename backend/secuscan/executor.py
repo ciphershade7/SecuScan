@@ -593,7 +593,10 @@ class TaskExecutor:
         output, exit_code = await self._execute_command(
             command,
             task_id,
-            timeout=self._resolve_execution_timeout(inputs),
+            timeout=min(
+                int(inputs.get("max_scan_time") or inputs.get("timeout") or settings.sandbox_timeout),
+                settings.sandbox_timeout
+            ),
         )
         duration = time.time() - start_time
 
