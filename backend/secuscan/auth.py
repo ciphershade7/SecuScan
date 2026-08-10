@@ -207,9 +207,6 @@ async def require_api_key(
     return candidate
 
 
-def get_api_key() -> str | None:
-    """Return the current API key, or None if not yet initialised."""
-    return _api_key
 
 
 # ── Per-user / per-workspace ownership ──────────────────────────────────────

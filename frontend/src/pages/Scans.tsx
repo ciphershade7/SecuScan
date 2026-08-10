@@ -283,7 +283,6 @@ export default function Scans() {
       setSelectedIds(tasks.map((t) => t.task_id));
     }
   }
-  }
 
   return (
     <div className="min-h-screen bg-charcoal-dark text-silver p-6 md:p-12 space-y-12">

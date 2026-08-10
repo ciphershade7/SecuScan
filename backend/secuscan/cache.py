@@ -29,8 +29,6 @@ class CacheClient:
         self._sweep_count = 0
         self._write_count = 0
 
-    async def connect(self):
-        pass
 
     async def disconnect(self):
         self._data.clear()

@@ -6,12 +6,8 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 
-UTC = timezone.utc
 
 
-def utc_now() -> datetime:
-    """Return the current time as a timezone-aware UTC datetime."""
-    return datetime.now(UTC)
 
 
 def ensure_utc(value: datetime) -> datetime:
