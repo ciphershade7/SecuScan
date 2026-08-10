@@ -144,7 +144,7 @@ def parse_package_lock(filepath: str) -> Dict[str, List[Tuple[str, str]]]:
         all_deps = {**deps, **peer_deps}
 
         if all_deps:
-            relations[parent] = [(normalize_package_name(k), v) for k, v in all_deps.items()]
+            relations[parent] = [(re.sub(r"[-_.]+", "-", k).strip().lower(), v) for k, v in all_deps.items()]
 
     # Fallback to dependencies key (NPM lockfile v1)
     dependencies = data.get("dependencies", {})
@@ -152,7 +152,7 @@ def parse_package_lock(filepath: str) -> Dict[str, List[Tuple[str, str]]]:
         for name, info in deps_dict.items():
             requires = info.get("requires", {})
             if requires:
-                relations[name] = [(normalize_package_name(k), v) for k, v in requires.items()]
+                relations[name] = [(re.sub(r"[-_.]+", "-", k).strip().lower(), v) for k, v in requires.items()]
             child_deps = info.get("dependencies", {})
             if child_deps:
                 parse_v1_deps(child_deps)
@@ -173,7 +173,7 @@ def parse_package_json(filepath: str) -> Dict[str, List[Tuple[str, str]]]:
         peer_deps = data.get("peerDependencies", {})
         all_deps = {**deps, **dev_deps, **peer_deps}
         return {
-            "root": [(normalize_package_name(k), v) for k, v in all_deps.items()]
+            "root": [(re.sub(r"[-_.]+", "-", k).strip().lower(), v) for k, v in all_deps.items()]
         }
     except Exception:
         return {}
@@ -318,7 +318,12 @@ def validate_remediation(remediation_str: str, graph: Dict[str, List[Dict[str, A
     constraints = graph[pkg_name]
     specifiers = [c["specifier"] for c in constraints]
 
-    clean_target = clean_version_string(target_version)
+    clean_target = target_version.strip().lower()
+    if clean_target.startswith("v"):
+        clean_target = clean_target[1:]
+    match = re.match(r"^([0-9]+(?:\.[0-9]+)*)", clean_target)
+    if match:
+        clean_target = match.group(1)
 
     is_safe = True
     try:
