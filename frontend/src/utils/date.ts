@@ -154,31 +154,34 @@ export function formatDateLong(dateStr: string | null): string {
 }
 
 /**
- * Shorthand for general toLocaleDateString without hardcoding.
+ * Format date or time with locale and timezone support.
  */
-export function formatLocaleDate(dateStr: string | Date | null | undefined, options: Intl.DateTimeFormatOptions = {}): string {
+export function formatLocaleDateTime(
+    dateStr: string | Date | null | undefined, 
+    options: Intl.DateTimeFormatOptions = {}, 
+    timeOnly = false
+): string {
     const d = typeof dateStr === 'string' || dateStr === null || dateStr === undefined ? parseDateSafe(dateStr) : dateStr
     if (!d) return 'N/A'
     const tz = getPreferredTimeZone()
-    return d.toLocaleDateString([], {
-        ...(tz ? { timeZone: tz } : {}),
-        ...options
-    })
+    const method = timeOnly ? 'toLocaleTimeString' : 'toLocaleDateString'
+    return d[method]([], { ...(tz ? { timeZone: tz } : {}), ...(timeOnly ? { hour12: false } : {}), ...options })
 }
 
-/**
- * Shorthand for general toLocaleTimeString without hardcoding.
- */
-export function formatLocaleTime(dateStr: string | Date | null | undefined, options: Intl.DateTimeFormatOptions = {}): string {
-    const d = typeof dateStr === 'string' || dateStr === null || dateStr === undefined ? parseDateSafe(dateStr) : dateStr
-    if (!d) return 'N/A'
-    const tz = getPreferredTimeZone()
-    return d.toLocaleTimeString([], {
-        ...(tz ? { timeZone: tz } : {}),
-        hour12: false,
-        ...options
-    })
+export const formatLocaleDate = (dateStr: string | Date | null | undefined, options: Intl.DateTimeFormatOptions = {}) => 
+    formatLocaleDateTime(dateStr, options, false)
+
+export const formatLocaleTime = (dateStr: string | Date | null | undefined, options: Intl.DateTimeFormatOptions = {}) => 
+    formatLocaleDateTime(dateStr, options, true)
+
+export function formatDuration(seconds?: number | null): string {
+  if (seconds == null || !Number.isFinite(seconds) || seconds <= 0) return 'N/A'
+  if (seconds < 60) return `${Math.round(seconds)}s`
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.round(seconds % 60)
+  return `${mins}m ${secs.toString().padStart(2, '0')}s`
 }
+
 
 export type DateRange = 'all' | '24h' | '7d' | '30d'
 

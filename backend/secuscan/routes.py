@@ -40,56 +40,13 @@ __all__ = [
     "build_report_filename",
 ]
 
-def _parse_workflow_steps(raw_steps: Any) -> List[Dict[str, Any]]:
-    if isinstance(raw_steps, list):
-        parsed = raw_steps
-    elif not raw_steps:
-        parsed = []
-    else:
-        try:
-            parsed = json.loads(raw_steps)
-        except (TypeError, json.JSONDecodeError):
-            parsed = []
-    normalized: List[Dict[str, Any]] = []
-    for step in parsed if isinstance(parsed, list) else []:
-        if not isinstance(step, dict):
-            continue
-        try:
-            model = WorkflowStep(
-                plugin_id=str(step.get("plugin_id", "")),
-                inputs=step.get("inputs") or {},
-                preset=step.get("preset"),
-                execution_context=step.get("execution_context") or {},
-            )
-        except Exception:
-            continue
-        normalized.append(model.model_dump())
-    return normalized
-
-def _serialize_workflow(row: Dict[str, Any], queued_task_ids: Optional[List[str]] = None) -> Dict[str, Any]:
-    """Return the workflow shape consumed by the frontend."""
-    return {
-        "id": row["id"],
-        "name": row["name"],
-        "schedule_seconds": row.get("schedule_seconds"),
-        "schedule_timezone": row.get("schedule_timezone"),
-        "enabled": bool(row.get("enabled")),
-        "steps": _parse_workflow_steps(row.get("steps_json")),
-        "created_at": row.get("created_at"),
-        "last_run_at": row.get("last_run_at"),
-        "queued_task_ids": queued_task_ids or [],
-    }
-
-
-def _json_payload(value: Any, fallback: str) -> str:
-    return json.dumps(value if value is not None else json.loads(fallback))
 
 
 from .validation import is_filesystem_target  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
-from .cache import get_cache, invalidate_view_cache
+from .cache import cache, invalidate_cache
 from .models import (
     TaskCreateRequest, TaskResponse, TaskResult,
     PluginListResponse, ErrorResponse, BulkDeleteRequest,
@@ -193,7 +150,7 @@ def _serialize_notification_history(row: Dict[str, Any]) -> Dict[str, Any]:
 
 async def get_or_set_cached(key: str, builder):
     """Read from cache, or build and cache a JSON response."""
-    cache = await get_cache()
+    cache = cache
     cached = await cache.get_json(key)
     if cached is not None:
         return cached
@@ -521,7 +478,7 @@ async def start_task(
     # ASGI servers, while tests using TestClient still execute the task to keep
     # contract tests deterministic.
     background_tasks.add_task(executor.execute_task, task_id)
-    await invalidate_view_cache()
+    await invalidate_cache("summary:", "findings:", "reports:", "tasks:")
 
     return {
         "task_id": task_id,
@@ -585,7 +542,7 @@ async def retry_task(
         raise HTTPException(status_code=503, detail=error_msg)
 
     background_tasks.add_task(executor.execute_task, task_id)
-    await invalidate_view_cache()
+    await invalidate_cache("summary:", "findings:", "reports:", "tasks:")
 
     return {
         "task_id": task_id,
@@ -862,7 +819,7 @@ async def get_task_result(task_id: str, owner: str = Depends(get_current_owner))
     await require_owned_task(db, task_id, owner)
 
     cache_key = f"tasks:result:{task_id}:{owner}"
-    cache = await get_cache()
+    cache = cache
     cached = await cache.get_json(cache_key)
     if cached is not None:
         return cached
@@ -1523,7 +1480,7 @@ async def delete_task(task_id: str, owner: str = Depends(get_current_owner)):
         raise HTTPException(status_code=400, detail="Cannot delete a running task. Abort it first.")
 
     await delete_task_records([task_id])
-    await invalidate_view_cache()
+    await invalidate_cache("summary:", "findings:", "reports:", "tasks:")
 
     return {
         "task_id": task_id,
@@ -1567,7 +1524,7 @@ async def bulk_delete_tasks(request: BulkDeleteRequest, owner: str = Depends(get
         raise HTTPException(status_code=400, detail="Cannot delete running tasks. Abort them first.")
 
     await delete_task_records(owned_ids)
-    await invalidate_view_cache()
+    await invalidate_cache("summary:", "findings:", "reports:", "tasks:")
 
     return {
         "deleted_count": len(owned_ids),
@@ -1601,7 +1558,7 @@ async def clear_all_tasks(owner: str = Depends(get_current_owner)):
     # set NULL by ON DELETE) so nothing of theirs is left behind.
     await db.execute("DELETE FROM findings WHERE owner_id = ?", (owner,))
 
-    await invalidate_view_cache()
+    await invalidate_cache("summary:", "findings:", "reports:", "tasks:")
 
     return {
         "cleared": True,

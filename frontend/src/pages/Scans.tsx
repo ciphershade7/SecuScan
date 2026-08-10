@@ -7,6 +7,7 @@ import {
   parseDateSafe,
   formatLocaleDate,
   formatLocaleTime,
+  formatDuration,
 } from "../utils/date";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { useToast } from "../components/ToastContext";
@@ -282,12 +283,6 @@ export default function Scans() {
       setSelectedIds(tasks.map((t) => t.task_id));
     }
   }
-
-  function formatDuration(seconds?: number) {
-    if (!seconds) return null;
-    if (seconds < 60) return `${Math.round(seconds)}s`;
-    if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
-    return `${Math.round(seconds / 3600)}h`;
   }
 
   return (

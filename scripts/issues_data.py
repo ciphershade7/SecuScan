@@ -556,13 +556,9 @@ def build_type_labels(iss):
     t = iss.get("type")
     extra = []
     if t == "type:security":
-        extra.append("type:bug")          # security issues are also bugs
-    if t == "type:refactor" and "perf" in iss.get("body","").lower()[:0] and False:
-        pass
+        extra.append("type:bug")
     if t == "type:performance":
-        extra.append("type:refactor")      # perf work is also a refactor
-    if t == "type:feature" and "test" in iss.get("body","").lower():
-        pass
+        extra.append("type:refactor")
     return [t] + extra
 
 if __name__ == "__main__":

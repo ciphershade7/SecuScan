@@ -45,7 +45,6 @@ export function useShortcuts(onToggleSidebar?: () => void) {
                 switch (key) {
                     case 'd': navigate(routes.dashboard); break
                     case 's': navigate(routes.scans); break
-                    case 'h': navigate(routes.scans); break
                     case 'f': navigate(routes.findings); break
                     case 'r': navigate(routes.reports); break
                     case 't': navigate(routes.settings); break

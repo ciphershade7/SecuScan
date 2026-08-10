@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { getDashboardSummary, getHealth, cancelTask } from '../api'
 import { ExecutiveStatsBar } from '../components/ExecutiveStatsBar'
 import { routePath, routes } from '../routes'
-import { formatBriefingDate, formatTaskInit, formatLocaleDate, formatLocaleTime } from '../utils/date'
+import { formatBriefingDate, formatTaskInit, formatLocaleDate, formatLocaleTime, formatDuration } from '../utils/date'
+import { asString, asNumber, asOptionalNumber } from '../utils/typeGuards'
 
 type Finding = {
   id: string
@@ -37,19 +38,6 @@ type Summary = {
   recent_tasks: Task[]
   scan_activity: { total: number; completed: number; running: number }
 }
-
-function asString(value: unknown, fallback = '') {
-  return typeof value === 'string' ? value : fallback
-}
-
-function asNumber(value: unknown, fallback = 0) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
-}
-
-function asOptionalNumber(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? value : null
-}
-
 
 function normalizeSummary(data: Partial<Summary> | null | undefined): Summary {
   const summary = data && typeof data === 'object' ? data : {}
@@ -116,15 +104,6 @@ const emptySummary: Summary = {
   running_tasks: [],
   recent_tasks: [],
   scan_activity: { total: 0, completed: 0, running: 0 },
-}
-
-
-function formatDuration(seconds?: number | null) {
-  if (seconds == null || !Number.isFinite(seconds) || seconds <= 0) return 'N/A'
-  if (seconds < 60) return `${Math.round(seconds)}s`
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.round(seconds % 60)
-  return `${mins}m ${secs.toString().padStart(2, '0')}s`
 }
 
 function displayToolName(task: Task) {

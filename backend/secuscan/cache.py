@@ -123,28 +123,10 @@ async def init_cache(url: Optional[str] = None) -> CacheClient:
     return cache
 
 
-async def get_cache() -> CacheClient:
-    """Get the global cache instance."""
+async def invalidate_cache(*prefixes: str):
+    """Clear caches by prefix."""
+    global cache
     if cache is None:
-        raise RuntimeError("Cache not initialized")
-    return cache
-
-
-async def invalidate_view_cache():
-    """Clear aggregate caches after writes."""
-    try:
-        c = await get_cache()
-    except RuntimeError:
         return
-    for prefix in ["summary:", "findings:", "reports:", "tasks:"]:
-        await c.delete_prefix(prefix)
-
-
-async def invalidate_plugin_caches():
-    """Clear plugin and dashboard summary caches when plugin state changes."""
-    try:
-        c = await get_cache()
-    except RuntimeError:
-        return
-    for prefix in ["summary:", "plugins:"]:
-        await c.delete_prefix(prefix)
+    for prefix in prefixes:
+        await cache.delete_prefix(prefix)
