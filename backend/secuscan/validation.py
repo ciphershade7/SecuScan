@@ -36,11 +36,6 @@ ALLOWED_PRIVATE = [
 BLOCKED_TLDS = [".mil", ".gov"]
 
 
-def _net_within_allowed_networks(net: ipaddress._BaseNetwork) -> bool:
-    """Return True if net is permitted by settings.allowed_networks (best-effort, conservative)."""
-    patterns = [str(p).strip() for p in (settings.allowed_networks or []) if str(p).strip()]
-    if not patterns:
-        return True
 
     def wildcard_to_net(pattern: str) -> ipaddress.IPv4Network | None:
         # Convert simple trailing-octet wildcards like "10.*.*.*" → 10.0.0.0/8.
@@ -167,8 +162,6 @@ def _validate_resolved_ips_safe_mode(resolved_ips: list[ipaddress._BaseAddress])
         )
         if not is_private:
             return False, "Public IPs/networks not allowed in safe mode (SecuScan Guardrail)"
-        if not _net_within_allowed_networks(ip_net):
-            return False, "Target not within allowed networks in safe mode (SecuScan Guardrail)"
 
     return True, ""
 
@@ -208,9 +201,6 @@ def validate_target(target: str, safe_mode: bool = True) -> Tuple[bool, str]:
             )
             if not is_private:
                 return False, "Public IPs/networks not allowed in safe mode (SecuScan Guardrail)"
-
-            if not _net_within_allowed_networks(net):
-                return False, "Target not within allowed networks in safe mode (SecuScan Guardrail)"
 
         return True, ""
 

@@ -1585,7 +1585,8 @@ async def get_settings():
         "safety": {
             "require_consent": settings.require_consent,
             "safe_mode_default": settings.safe_mode_default,
-            "allowed_networks": settings.allowed_networks
+            "network_allowlist": settings.network_allowlist,
+            "network_denylist": settings.network_denylist,
         },
         "execution_context": {
             "validation_modes": [mode.value for mode in ValidationMode],

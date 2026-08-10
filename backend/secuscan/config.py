@@ -68,7 +68,6 @@ class Settings(BaseSettings):
     dns_rebind_check: bool = True
     require_consent: bool = True
     allow_loopback_scans: bool = True
-    allowed_networks: List[str] = ["127.0.0.1", "192.168.*.*", "10.*.*.*", "172.16.*.*"]
     cors_allowed_origins: List[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
@@ -195,22 +194,6 @@ class Settings(BaseSettings):
         env_prefix = "SECUSCAN_"
         case_sensitive = False
 
-    @field_validator(
-        "cors_allowed_origins",
-        "cors_allowed_methods",
-        "cors_allowed_headers",
-        "trusted_proxies",
-        "network_allowlist",
-        "network_denylist",
-        "notification_allowed_ip_ranges",
-        mode="before",
-    )
-    @classmethod
-    def parse_csv_or_list(cls, value: Any) -> Any:
-        """Allow comma-separated env values in addition to JSON arrays."""
-        if isinstance(value, str):
-            return [item.strip() for item in value.split(",") if item.strip()]
-        return value
 
     @property
     def resolved_vault_key(self) -> bytes:
