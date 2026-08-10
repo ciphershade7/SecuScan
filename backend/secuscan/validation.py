@@ -12,7 +12,7 @@ from fnmatch import fnmatch
 
 import logging
 
-from .config import settings
+from .config import settings, MANDATORY_DENYLIST
 
 logger = logging.getLogger(__name__)
 
@@ -405,7 +405,7 @@ def validate_webhook_target(url: str) -> Tuple[bool, Optional[str]]:
             ip = ipaddress.ip_address(addr[4][0])
         except ValueError:
             continue
-        for blocked_cidr in settings.notification_blocked_ip_ranges:
+        for blocked_cidr in MANDATORY_DENYLIST:
             try:
                 if ip in ipaddress.ip_network(blocked_cidr, strict=False):
                     return False, f"Webhook URL resolves to blocked address ({ip}) in range {blocked_cidr}"
@@ -659,7 +659,7 @@ def resolve_and_validate_target(url: str) -> Tuple[bool, str]:
             continue
 
         # Check against blocked ranges
-        for blocked_cidr in settings.notification_blocked_ip_ranges:
+        for blocked_cidr in MANDATORY_DENYLIST:
             try:
                 blocked_net = ipaddress.ip_network(blocked_cidr, strict=False)
                 if ip in blocked_net:

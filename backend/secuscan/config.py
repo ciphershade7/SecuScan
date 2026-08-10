@@ -85,7 +85,6 @@ class Settings(BaseSettings):
     plugin_signature_key: Optional[str] = None
     enforce_plugin_signatures: bool = False
     enforce_parser_integrity: bool = True
-    parser_hash_algorithm: str = "sha256"
     vault_key: Optional[str] = None
     denied_capabilities: List[str] = []
     admin_api_key: Optional[str] = None
@@ -97,7 +96,6 @@ class Settings(BaseSettings):
     # on MANDATORY_DENYLIST for why those ranges live outside this field.
     network_denylist: List[str] = []
     network_audit_log_file: str = str(PROJECT_ROOT / "logs" / "network.audit.log")
-    network_audit_retention_days: int = 90
     network_audit_max_entries: int = 10000
     enforce_network_policy: bool = True
     network_policy_failure_mode: str = "block"  # "block" or "log_only"
@@ -139,7 +137,6 @@ class Settings(BaseSettings):
     sandbox_cpu_quota: float = 0.5
     sandbox_memory_mb: int = 512
     sandbox_max_output_bytes: int = 5_242_880  # 5 MB
-    sandbox_allow_network: bool = True
     docker_network: str = "restricted"  # Docker network name for sandboxed containers
 
     # Task-start payload limits (tunable via env vars)
@@ -154,24 +151,8 @@ class Settings(BaseSettings):
     # Workflow Configuration
     workflow_min_interval_seconds: int = 60
 
-    # Notification SSRF Protection
-    notification_ssrf_enabled: bool = True
+    # Notification SSRF Protection (always enabled, uses MANDATORY_DENYLIST)
     notification_allowed_ip_ranges: List[str] = []
-    notification_blocked_ip_ranges: List[str] = [
-        "169.254.169.254/32",
-        "169.254.0.0/16",
-        "127.0.0.0/8",
-        "10.0.0.0/8",
-        "172.16.0.0/12",
-        "192.168.0.0/16",
-        "100.64.0.0/10",
-        "fc00::/7",
-        "fe80::/10",
-        "::1/128",
-        "224.0.0.0/4",
-        "ff00::/8",
-        "0.0.0.0/8",
-    ]
     notification_max_redirects: int = 0
     notification_allowed_ports: List[int] = [80, 443, 8080, 8443]
 
@@ -222,7 +203,6 @@ class Settings(BaseSettings):
         "network_allowlist",
         "network_denylist",
         "notification_allowed_ip_ranges",
-        "notification_blocked_ip_ranges",
         mode="before",
     )
     @classmethod
@@ -231,11 +211,6 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
         return value
-
-    @property
-    def base_url(self) -> str:
-        """Full base URL for the API"""
-        return f"http://{self.bind_address}:{self.bind_port}"
 
     @property
     def resolved_vault_key(self) -> bytes:

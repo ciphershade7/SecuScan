@@ -330,7 +330,7 @@ async def root():
         "name": "SecuScan API",
         "version": "0.1.0-alpha",
         "status": "under development",
-        "api_docs": f"{settings.base_url}/api/docs" if settings.debug else None,
+        "api_docs": f"http://{settings.bind_address}:{settings.bind_port}/api/docs" if settings.debug else None,
         "legal_notice": "For authorized testing only. Unauthorized scanning may be illegal."
     }
 

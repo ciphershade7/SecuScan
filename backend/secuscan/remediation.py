@@ -11,23 +11,6 @@ from packaging.version import Version
 from packaging.specifiers import SpecifierSet
 
 
-def normalize_package_name(name: str) -> str:
-    """Normalize a package name to lowercase with PEP 503 compatibility."""
-    return re.sub(r"[-_.]+", "-", name).strip().lower()
-
-
-def clean_version_string(ver_str: str) -> str:
-    """Extract numeric prefix from version strings for comparison."""
-    ver_str = ver_str.strip().lower()
-    if ver_str.startswith("v"):
-        ver_str = ver_str[1:]
-    # Match the first sequence of digits and dots (e.g., "1.2.3" in "1.2.3-ubuntu")
-    match = re.match(r"^([0-9]+(?:\.[0-9]+)*)", ver_str)
-    if match:
-        return match.group(1)
-    return ver_str
-
-
 def parse_remediation_suggestion(remediation_str: str) -> Tuple[str, str] | None:
     """Parse recommendation string to extract package name and target upgrade version.
 
@@ -36,7 +19,7 @@ def parse_remediation_suggestion(remediation_str: str) -> Tuple[str, str] | None
     pattern = r"(?:update|upgrade)\s+([a-zA-Z0-9_\-\.]+)\s+(?:to\s+)?(?:version\s+)?([a-zA-Z0-9_\-\.\+\~]+)"
     match = re.search(pattern, remediation_str, re.IGNORECASE)
     if match:
-        pkg_name = normalize_package_name(match.group(1))
+        pkg_name = re.sub(r"[-_.]+", "-", match.group(1)).strip().lower()
         version = match.group(2)
         return pkg_name, version
     return None
@@ -209,7 +192,7 @@ def parse_requirement_line(line: str) -> Tuple[str, SpecifierSet] | None:
     name, spec_str = match.groups()
     # Normalize comparison operators if present
     spec_str = spec_str.strip()
-    name = normalize_package_name(name)
+    name = re.sub(r"[-_.]+", "-", name).strip().lower()
     try:
         spec = SpecifierSet(spec_str)
     except Exception:
@@ -234,7 +217,7 @@ def get_python_transitive_dependencies(package_name: str) -> List[Tuple[str, Spe
                     dep_name, dep_spec = match2.groups()
                 else:
                     continue
-            dep_name = normalize_package_name(dep_name)
+            dep_name = re.sub(r"[-_.]+", "-", dep_name).strip().lower()
             try:
                 spec = SpecifierSet(dep_spec)
             except Exception:

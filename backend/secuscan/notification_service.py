@@ -18,6 +18,7 @@ import ipaddress
 import smtplib
 import asyncio
 from email.mime.text import MIMEText
+from .config import MANDATORY_DENYLIST
 from email.mime.multipart import MIMEMultipart
 from dataclasses import dataclass
 from types import TracebackType
@@ -361,7 +362,7 @@ async def send_webhook(
         except ValueError:
             continue
         blocked = False
-        for blocked_cidr in settings.notification_blocked_ip_ranges:
+        for blocked_cidr in MANDATORY_DENYLIST:
             try:
                 if ip in ipaddress.ip_network(blocked_cidr, strict=False):
                     blocked = True
@@ -455,7 +456,7 @@ async def send_webhook(
                 )
                 for _family, _stype, _proto, _cname, sockaddr in redirect_ips:
                     rip = ipaddress.ip_address(sockaddr[0])
-                    for blocked_cidr in settings.notification_blocked_ip_ranges:
+                    for blocked_cidr in MANDATORY_DENYLIST:
                         try:
                             if rip in ipaddress.ip_network(
                                 blocked_cidr, strict=False

@@ -40,15 +40,7 @@ class ReportGenerator:
         img = Image.new("RGBA", (width, height), (255, 255, 255, 0))
         draw = ImageDraw.Draw(img)
 
-        colors_map = {
-            "CRITICAL": (153, 27, 27, 255),
-            "HIGH": (220, 38, 38, 255),
-            "MEDIUM": (217, 119, 6, 255),
-            "LOW": (37, 99, 235, 255),
-            "INFO": (71, 85, 105, 255)
-        }
-
-        severities = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]
+        colors_map = {k: (*v, 255) for k, v in cls.SEVERITY_COLORS.items()}
         max_val = max(severity_counts.values()) if any(severity_counts.values()) else 1
 
         # Draw background container
@@ -74,7 +66,7 @@ class ReportGenerator:
             except Exception:
                 font = None
 
-        for i, sev in enumerate(severities):
+        for i, sev in enumerate(cls.SEVERITY_ORDER):
             count = severity_counts.get(sev, 0)
             bar_len = int((count / max_val) * max_bar_width) if count > 0 else 0
             color = colors_map[sev]
