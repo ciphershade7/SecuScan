@@ -25,8 +25,6 @@ class CacheClient:
         self._expires: Dict[str, float] = {}
         self._access_order: Dict[str, float] = {}
         self.max_entries = max_entries
-        self._eviction_count = 0
-        self._sweep_count = 0
         self._write_count = 0
 
 
@@ -43,7 +41,6 @@ class CacheClient:
             self._expires.pop(k, None)
             self._access_order.pop(k, None)
         if keys:
-            self._sweep_count += len(keys)
 
     def _evict_lru(self):
         """Evict the least recently used entries when over capacity."""
@@ -55,7 +52,6 @@ class CacheClient:
             self._data.pop(k, None)
             self._expires.pop(k, None)
             self._access_order.pop(k, None)
-        self._eviction_count += evict_count
 
     async def get_json(self, key: str) -> Optional[Any]:
         """Retrieve and parse JSON from memory, respecting TTL."""
@@ -100,13 +96,6 @@ class CacheClient:
         return len(self._data)
 
     @property
-    def stats(self) -> Dict[str, Any]:
-        return {
-            "size": self.size,
-            "max_entries": self.max_entries,
-            "eviction_count": self._eviction_count,
-            "sweep_count": self._sweep_count,
-        }
 
 
 # Global cache instance
