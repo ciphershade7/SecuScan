@@ -29,7 +29,7 @@ from .database import init_db, db as global_db
 from .routes import router
 from .saved_views import saved_views_router
 from .workflows import scheduler
-from .plugins import init_plugins, get_plugin_check_latency_ms
+from .plugins import init_plugins
 
 # Import rate limiter
 from .rate_limiter import make_scan_rate_limiter, RateLimitExceeded
@@ -319,7 +319,6 @@ async def health_check():
             "rate_limit": getattr(settings, 'scan_rate_limit', '5/minute'),
             "burst_limit": getattr(settings, 'scan_burst_limit', '10/hour'),
         },
-        "plugin_check_latency_ms": get_plugin_check_latency_ms(),
     }
 
 # Root endpoint

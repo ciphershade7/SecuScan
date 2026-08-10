@@ -35,19 +35,7 @@ _INTERNAL_CONTROL_FIELDS: frozenset = frozenset({
 
 logger = logging.getLogger(__name__)
 
-_PLACEHOLDER_PLUGIN_IDS = frozenset({
-    "zap_scanner",
-    "sniper",
-})
 
-_NATIVE_PLUGIN_IDS = frozenset({
-    "network_scanner",
-    "api_scanner",
-    "xss_exploiter",
-    "web_scanner",
-    "recon_scanner",
-    "port_scanner",
-})
 
 _VALIDATION_PRESETS: Dict[str, Dict[str, Any]] = {
     "url": {
@@ -84,17 +72,6 @@ _VALIDATION_PRESETS: Dict[str, Dict[str, Any]] = {
     },
 }
 
-def _is_absolute_path(value: str) -> bool:
-    """Check if a path is absolute regardless of the server OS.
-
-    Handles Unix (/), Windows drive-letter (C:\\, C:/),
-    and UNC (\\\\server\\share) absolute path styles.
-    """
-    if value.startswith("/"):
-        return True
-    if value.startswith("\\"):
-        return True
-    return bool(re.match(r'^[a-zA-Z]:[/\\]', value))
 
 class PluginManager:
     """Manages plugin loading and validation"""
@@ -434,16 +411,6 @@ class PluginManager:
         else:
             return None
 
-    def _resolve_implementation_status(self, plugin: PluginMetadata) -> str:
-        """Resolve implementation maturity without requiring every plugin to be edited."""
-        explicit = getattr(plugin, "implementation_status", None)
-        if explicit:
-            return str(explicit)
-        if plugin.id in _PLACEHOLDER_PLUGIN_IDS:
-            return "placeholder"
-        if plugin.id in _NATIVE_PLUGIN_IDS:
-            return "native"
-        return "integrated"
 
     def _interpolate(self, token: str, inputs: Dict) -> Optional[str]:
         """Interpolate variables in a token string using single-pass substitution.
@@ -514,7 +481,7 @@ class PluginManager:
         """Resolve plugin wordlist aliases and Linux-centric defaults to local project assets."""
         candidate = Path(os.path.expanduser(value))
 
-        if _is_absolute_path(value):
+        if Path(value).is_absolute():
             raise ValueError(
                 f"Wordlist path must be relative, got absolute path: {value!r}"
             )
@@ -773,14 +740,3 @@ def get_plugin_manager() -> PluginManager:
         raise RuntimeError("Plugin manager not initialized")
     return plugin_manager
 
-def get_plugin_check_latency_ms() -> float:
-    """Measure plugin enumeration latency in milliseconds."""
-    manager = get_plugin_manager()
-
-    start = time.perf_counter()
-    manager.list_plugins()
-
-    return round(
-        (time.perf_counter() - start) * 1000,
-        2,
-    )

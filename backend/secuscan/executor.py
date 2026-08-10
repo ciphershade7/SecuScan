@@ -604,10 +604,10 @@ class TaskExecutor:
             f.write(output)
 
         # Classify result
-        final_status, error_message = self._classify_command_result(
-            plugin=plugin,
-            output=output,
-            exit_code=exit_code,
+        final_status, error_message = (
+            (TaskStatus.COMPLETED.value, None)
+            if exit_code == 0 or (plugin.ignore_exit_code and output.strip())
+            else (TaskStatus.FAILED.value, f"Command exited with code {exit_code}")
         )
 
         await db.execute(
@@ -1328,7 +1328,11 @@ class TaskExecutor:
         structured_result["finding_groups"] = build_finding_groups(normalized_findings)
         structured_result["asset_summary"] = build_asset_summary(normalized_findings, asset_services)
         structured_result["scan_diff"] = build_scan_diff(normalized_findings, previous_findings)
-        structured_result["severity_counts"] = self._build_severity_counts(normalized_findings)
+        severity_counts: Dict[str, int] = {}
+        for f in normalized_findings:
+            sev = str(f.get("severity", "info")).lower()
+            severity_counts[sev] = severity_counts.get(sev, 0) + 1
+        structured_result["severity_counts"] = severity_counts
         structured_result["count"] = len(normalized_findings)
         return structured_result, previous_findings, asset_services
 
