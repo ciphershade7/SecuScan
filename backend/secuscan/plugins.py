@@ -1,7 +1,3 @@
-"""
-Plugin loader and management system
-"""
-
 import time
 import json
 import os
@@ -24,8 +20,6 @@ from .validation import sanitize_input
 _PORT_SPEC_PATTERN = re.compile(r"^\d+(-\d+)?(,\d+(-\d+)?)*$")
 
 # Internal control fields injected by the executor/routes layer that are not
-# declared in individual plugin schemas.  Strip these before schema validation
-# so plugins that don't declare them don't raise "Unknown field" errors.
 _INTERNAL_CONTROL_FIELDS: frozenset = frozenset({
     "safe_mode",
     "consent_granted",
@@ -74,14 +68,12 @@ _VALIDATION_PRESETS: Dict[str, Dict[str, Any]] = {
 
 
 class PluginManager:
-    """Manages plugin loading and validation"""
 
     def __init__(self, plugins_dir: str):
         self.plugins_dir = Path(plugins_dir)
         self.plugins: Dict[str, PluginMetadata] = {}
 
     def _scan_plugin_dirs(self) -> List[Path]:
-        """Scan the plugins directory for plugin directories."""
         if not self.plugins_dir.exists():
             logger.warning(f"Plugins directory does not exist: {self.plugins_dir}")
             self.plugins_dir.mkdir(parents=True, exist_ok=True)
@@ -94,12 +86,6 @@ class PluginManager:
         return dirs
 
     async def load_plugins(self) -> int:
-        """
-        Load all plugins from the plugins directory.
-
-        Returns:
-            Number of successfully loaded plugins
-        """
         plugin_dirs = self._scan_plugin_dirs()
         loaded = 0
 
@@ -112,7 +98,6 @@ class PluginManager:
             try:
                 plugin_meta = await self._load_plugin_metadata(metadata_file)
 
-                # Validate plugin
                 if await self._validate_plugin(plugin_meta, plugin_dir):
                     self.plugins[plugin_meta.id] = plugin_meta
                     loaded += 1
@@ -125,7 +110,6 @@ class PluginManager:
 
         logger.info(f"Loaded {loaded} plugins")
 
-        # Invalidate caches when plugin state changes
         try:
             from .cache import invalidate_plugin_caches
             await invalidate_plugin_caches()
@@ -135,7 +119,6 @@ class PluginManager:
         return loaded
 
     async def _load_plugin_metadata(self, metadata_file: Path) -> PluginMetadata:
-        """Load and parse plugin metadata JSON"""
         # Always read metadata as UTF-8 to avoid platform-dependent decoding issues
         with open(metadata_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
@@ -143,7 +126,6 @@ class PluginManager:
         return PluginMetadata(**data)
 
     def _validate_engine(self, engine: Dict[str, str], plugin_id: str) -> bool:
-        """Validate plugin engine configuration."""
         engine_type = engine.get("type")
         if engine_type not in ["cli", "python", "docker"]:
             logger.error(f"Invalid engine type: {engine_type}")
@@ -156,7 +138,6 @@ class PluginManager:
         return True
 
     def _validate_safety(self, safety: Dict[str, Any]) -> bool:
-        """Validate plugin safety configuration."""
         safety_level = safety.get("level")
         if safety_level not in ["safe", "intrusive", "exploit"]:
             logger.error(f"Invalid safety level: {safety_level}")
@@ -164,7 +145,6 @@ class PluginManager:
         return True
 
     def _validate_capabilities(self, capabilities: Optional[List[str]], plugin_id: str) -> bool:
-        """Validate declared capabilities against the known set."""
         if capabilities is not None:
             try:
                 validate_capability_list(capabilities, plugin_id)
@@ -174,16 +154,6 @@ class PluginManager:
         return True
 
     async def _validate_plugin(self, plugin: PluginMetadata, plugin_dir: Path) -> bool:
-        """
-        Validate plugin metadata and dependencies.
-
-        Args:
-            plugin: Plugin metadata
-            plugin_dir: Plugin directory path
-
-        Returns:
-            True if plugin is valid
-        """
         # Check required fields
         if not plugin.id or not plugin.name:
             logger.error("Plugin missing required fields: id or name")
@@ -192,7 +162,6 @@ class PluginManager:
         if not self._validate_engine(plugin.engine, plugin.id):
             return False
 
-        # Validate parser exists
         parser_file = plugin_dir / "parser.py"
         if plugin.output.get("parser") == "custom" and not parser_file.exists():
             logger.error(
@@ -213,7 +182,6 @@ class PluginManager:
         return True
 
     def _verify_plugin_integrity(self, plugin: PluginMetadata, plugin_dir: Path) -> bool:
-        """Verify plugin checksum/signature when available."""
         metadata_file = plugin_dir / "metadata.json"
         parser_file = plugin_dir / "parser.py"
         has_checksum = bool(plugin.checksum)
@@ -256,17 +224,6 @@ class PluginManager:
     def compute_plugin_digest(
         metadata_file: Path, parser_file: Path, require_parser: bool = False
     ) -> str:
-        """Compute deterministic plugin digest ignoring mutable checksum/signature fields.
-
-        Args:
-            require_parser: When True, parser_file must exist. Used for plugins
-                that declare output.parser == 'custom', where a missing parser.py
-                would otherwise be silently hashed as an empty digest and let a
-                broken plugin pass integrity verification.
-
-        Raises:
-            FileNotFoundError: If require_parser is True and parser_file is missing.
-        """
         metadata = json.loads(metadata_file.read_text(encoding="utf-8"))
         metadata.pop("checksum", None)
         metadata.pop("signature", None)
@@ -289,15 +246,6 @@ class PluginManager:
     def verify_parser_at_exec_time(
         self, plugin: PluginMetadata, plugin_dir: Path
     ) -> bool:
-        """Re-verify plugin digest immediately before executing parser.py.
-
-        This closes the TOCTOU window between startup integrity check and
-        actual code execution: the file could be replaced on disk after the
-        initial load-time validation.
-
-        Returns True when execution should proceed, False when it must be
-        blocked.
-        """
         metadata_file = plugin_dir / "metadata.json"
         parser_file = plugin_dir / "parser.py"
 
@@ -336,11 +284,9 @@ class PluginManager:
         return True
 
     def get_plugin(self, plugin_id: str) -> Optional[PluginMetadata]:
-        """Get plugin by ID"""
         return self.plugins.get(plugin_id)
 
     def list_plugins(self) -> List[Dict]:
-        """List all loaded plugins"""
         plugins: List[Dict] = []
         for plugin in self.plugins.values():
             missing_binaries = self._get_missing_binaries(plugin)
@@ -377,7 +323,6 @@ class PluginManager:
         return plugins
 
     def _get_missing_binaries(self, plugin: PluginMetadata) -> List[str]:
-        """Resolve missing CLI binaries for runtime availability reporting."""
         required: List[str] = []
 
         if plugin.engine.get("type") == "cli":
@@ -395,7 +340,6 @@ class PluginManager:
         return [binary for binary in unique_required if shutil.which(binary) is None]
 
     def get_plugin_schema(self, plugin_id: str) -> Optional[Dict]:
-        """Get full plugin schema for UI generation"""
         if plugin := self.get_plugin(plugin_id):
             return {
                 "id": plugin.id,
@@ -413,14 +357,6 @@ class PluginManager:
 
 
     def _interpolate(self, token: str, inputs: Dict) -> Optional[str]:
-        """Interpolate variables in a token string using single-pass substitution.
-
-        First validates that every required placeholder has a non-empty value,
-        then performs a single ``re.sub`` pass to replace all placeholders at
-        once.  This prevents a user-supplied value for one field from being
-        re-interpreted as a placeholder for another field (sequential template
-        injection).
-        """
         if "{" not in token or "}" not in token:
             return token
 
@@ -445,7 +381,6 @@ class PluginManager:
         return re.sub(r"\{(\w+)(?::([^}]+))?\}", _replacer, token)
 
     def _with_field_defaults(self, plugin: PluginMetadata, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        """Fill omitted inputs from plugin field defaults."""
         normalized = dict(inputs)
         for field in plugin.fields:
             if field.id not in normalized or normalized[field.id] in (None, ""):
@@ -454,12 +389,6 @@ class PluginManager:
         return normalized
 
     def _reject_path_traversal(self, value: str) -> None:
-        """Raise ValueError if value contains parent-directory traversal components.
-
-        Called for every STRING/TEXT field during schema validation to prevent
-        ``../`` sequences from reaching external tools as file-path arguments,
-        which would enable arbitrary file-read via path traversal.
-        """
         normalized = value.replace("\\", os.sep).replace("/", os.sep)
         parts = normalized.split(os.sep)
         if ".." in parts:
@@ -469,7 +398,6 @@ class PluginManager:
             )
 
     def _is_path_in_wordlists_dir(self, resolved: Path) -> bool:
-        """Check that a resolved path is within the configured wordlists directory."""
         wordlists_dir = Path(settings.wordlists_dir).resolve()
         try:
             resolved.resolve().relative_to(wordlists_dir)
@@ -542,7 +470,6 @@ class PluginManager:
         return value
 
     def _normalize_inputs(self, plugin: PluginMetadata, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        """Normalize plugin inputs before command rendering."""
         normalized = self._with_field_defaults(plugin, inputs)
         wordlist_value = normalized.get("wordlist")
         if isinstance(wordlist_value, str) and wordlist_value.strip():
@@ -550,12 +477,6 @@ class PluginManager:
         return normalized
 
     def _reject_injected_args(self, field_id: str, value: str) -> None:
-        """Raise ValueError if value looks like a flag injection attempt.
-
-        Port fields are exempt from the leading-dash check but must match the
-        numeric port-specification grammar.  All other string fields must not
-        begin with a '-' character.
-        """
         if field_id in ("ports", "port"):
             if value and not _PORT_SPEC_PATTERN.match(value):
                 raise ValueError(
@@ -569,7 +490,6 @@ class PluginManager:
             )
 
     def _validate_integer_field(self, field_id: str, value: Any) -> None:
-        """Validate integer field value."""
         try:
             int(value)
         except (TypeError, ValueError):
@@ -578,7 +498,6 @@ class PluginManager:
             )
 
     def _validate_boolean_field(self, field_id: str, value: Any) -> None:
-        """Validate boolean field value."""
         if isinstance(value, bool):
             return
         if isinstance(value, str) and value.lower() in ("true", "false", "1", "0"):
@@ -588,7 +507,6 @@ class PluginManager:
         )
 
     def _validate_select_field(self, field_id: str, value: Any, options: Optional[List[Dict[str, str]]]) -> None:
-        """Validate select field value against options."""
         allowed = [opt.get("value") for opt in (options or [])]
         if value not in allowed:
             raise ValueError(
@@ -597,7 +515,6 @@ class PluginManager:
             )
 
     def _validate_string_field(self, field_id: str, value: Any, validation: Dict[str, Any]) -> None:
-        """Validate string/text field value against patterns and presets."""
         value_str = str(value)
 
         # Pattern / validation_type validation from field metadata
@@ -620,14 +537,6 @@ class PluginManager:
     def _validate_inputs_against_schema(
         self, plugin: PluginMetadata, inputs: Dict[str, Any]
     ) -> None:
-        """Validate caller-supplied inputs against the plugin's declared field schema.
-
-        Internal control fields (safe_mode, consent_granted, etc.) are stripped
-        before validation because they are injected by the executor layer and are
-        never declared in individual plugin schemas.
-
-        Raises ValueError with a descriptive message for the first violation found.
-        """
         field_map = {f.id: f for f in plugin.fields}
 
         for field_id, raw_value in inputs.items():
@@ -658,7 +567,6 @@ class PluginManager:
                 self._validate_string_field(field_id, raw_value, field.validation or {})
 
     def _evaluate_conditional_token(self, token: str, inputs: Dict[str, Any]) -> List[str]:
-        """Evaluate conditional command template token (--if:)."""
         parts = token.split(":")
         if len(parts) < 4 or parts[2] != "then":
             return []
@@ -687,7 +595,6 @@ class PluginManager:
         return rendered
 
     def _render_command_tokens(self, command_template: List[str], inputs: Dict[str, Any]) -> List[str]:
-        """Render all tokens from command template using user inputs."""
         command = []
         for token in command_template:
             if token.startswith("--if:"):
@@ -698,16 +605,6 @@ class PluginManager:
         return command
 
     def build_command(self, plugin_id: str, inputs: Dict) -> Optional[List[str]]:
-        """
-        Build command from plugin template and user inputs.
-
-        Args:
-            plugin_id: Plugin identifier
-            inputs: User input values
-
-        Returns:
-            Command as list of arguments
-        """
         plugin = self.get_plugin(plugin_id)
         if not plugin:
             return None
@@ -719,7 +616,6 @@ class PluginManager:
             if (key not in _INTERNAL_CONTROL_FIELDS or key in field_ids) and not str(key).startswith("__")
         }
 
-        # Validate before normalisation so SELECT checks run against raw user values
         self._validate_inputs_against_schema(plugin, inputs)
         inputs = self._normalize_inputs(plugin, inputs)
         return self._render_command_tokens(plugin.command_template, inputs)
@@ -728,14 +624,12 @@ class PluginManager:
 plugin_manager: Optional[PluginManager] = None
 
 async def init_plugins(plugins_dir: str) -> PluginManager:
-    """Initialize plugin manager and load plugins"""
     global plugin_manager
     plugin_manager = PluginManager(plugins_dir)
     await plugin_manager.load_plugins()
     return plugin_manager
 
 def get_plugin_manager() -> PluginManager:
-    """Get plugin manager instance"""
     if plugin_manager is None:
         raise RuntimeError("Plugin manager not initialized")
     return plugin_manager

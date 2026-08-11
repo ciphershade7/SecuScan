@@ -43,12 +43,6 @@ _SOURCE_QUALITY = {
 
 
 def generate_finding_key(finding: Dict[str, Any], plugin_id: str, target: str, owner_id: str) -> str:
-    """
-    Generate a stable deduplication key for a finding that is consistent
-    across different scan tasks targeting the same asset. Unlike the per-task
-    finding ID, this key intentionally excludes any task identifier so that
-    the same vulnerability discovered by separate tasks produces the same key.
-    """
     asset_ref = _guess_asset_ref(finding, target)
     asset_id = _stable_id("asset", target, asset_ref)
     signature = _issue_signature(finding)
@@ -301,7 +295,7 @@ def _compute_confidence(
     return round(max(0.0, min(0.99, score)), 2)
 
 
-def sorted({str(s).strip() for s in sources: Iterable[str] if str(s).strip()}) -> List[str]:
+def _sort_sources(sources: Iterable[str]) -> List[str]:
     return sorted({str(source).strip() for source in sources if str(source).strip()})
 
 
@@ -313,7 +307,6 @@ async def normalize_and_correlate_findings(
     target: str,
     findings: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
-    """Normalize evidence and correlate repeated findings across scans."""
     observed_at = to_utc_iso()
     staged: Dict[str, Dict[str, Any]] = {}
 
@@ -382,13 +375,6 @@ async def normalize_and_correlate_findings(
     normalized: List[Dict[str, Any]] = []
     for finding_group_id, finding in staged.items():
         previous = await db.fetchone(
-            """
-            SELECT first_seen_at, occurrence_count, corroborating_sources_json, analyst_status, retest_status
-            FROM findings
-            WHERE owner_id = ? AND finding_group_id = ?
-            ORDER BY discovered_at DESC
-            LIMIT 1
-            """,
             (owner_id, finding_group_id),
         )
         prior_sources = []

@@ -133,7 +133,6 @@ function severityTone(severity: string) {
   }
 }
 
-// Animation variants
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
@@ -214,7 +213,6 @@ export default function Dashboard() {
   const handleAbort = async (taskId: string) => {
     try {
       await cancelTask(taskId)
-      // Refresh summary immediately
       const data = await getDashboardSummary() as Summary
       applySummary(data)
     } catch (err) {
@@ -548,7 +546,7 @@ export default function Dashboard() {
 
                   </div>
 
-                  {/* Operational Stats: Minimized and Integrated */}
+                  {}
                   <div className="pt-6 grid grid-cols-1 md:grid-cols-3 gap-px bg-accent-silver/10 border border-accent-silver/5">
                     <div className="bg-charcoal px-6 py-5">
                       <span className="text-xs font-bold text-silver/70 uppercase tracking-[0.2em] block mb-2">Total Cycles</span>
@@ -572,7 +570,7 @@ export default function Dashboard() {
                 </div>
               </motion.section>
 
-              {/* Section: Recent Findings Ledger */}
+              {}
               <motion.section variants={itemVariants} className="px-8">
                   <header className="mb-10">
                     <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-silver-bright flex items-center gap-3">

@@ -1,6 +1,4 @@
-/**
- * Safe date parsing utility that handles ISO-8601 strings and raw SQLite strings.
- */
+
 export function parseDateSafe(rawValue: string | null | undefined): Date | null {
   if (!rawValue) return null
   const raw = rawValue.trim()
@@ -8,13 +6,10 @@ export function parseDateSafe(rawValue: string | null | undefined): Date | null 
   if (raw.toLowerCase() === 'now') return new Date()
 
   try {
-    // Handle formats like "YYYY-MM-DD HH:MM:SS" (SQLite) vs standard ISO-8601
     const isoCompatible = raw.includes('T') ? raw : raw.replace(' ', 'T')
 
-    // Check if the string already has timezone info (e.g. "Z" or "+HH:MM")
     const hasTimezone = /(?:Z|[+-]\d{2}:\d{2})$/.test(isoCompatible)
 
-    // We try multiple candidate strings if timezone is missing
     const candidates = hasTimezone
       ? [isoCompatible, raw]
       : [`${isoCompatible}Z`, isoCompatible, raw]
@@ -23,7 +18,6 @@ export function parseDateSafe(rawValue: string | null | undefined): Date | null 
       const d = new Date(candidate)
       const isValid = !Number.isNaN(d.getTime())
 
-      // Filter out invalid dates and unrealistic years (e.g., year 99999)
       if (isValid && d.getFullYear() > 1900 && d.getFullYear() < 2100) {
         return d
       }
@@ -35,9 +29,7 @@ export function parseDateSafe(rawValue: string | null | undefined): Date | null 
   return null
 }
 
-/**
- * Gets the preferred timezone from local storage or returns undefined to use system default.
- */
+
 function getPreferredTimeZone(): string | undefined {
   try {
     const saved = localStorage.getItem('secuscan-config')
@@ -48,14 +40,11 @@ function getPreferredTimeZone(): string | undefined {
       }
     }
   } catch (e) {
-      // Fallback to system default
   }
   return undefined
 }
 
-/**
- * Returns the current timezone being used (either preferred or system default).
- */
+
 export function getCurrentTimeZone(): string {
   const preferred = getPreferredTimeZone()
   if (preferred) return preferred
@@ -66,9 +55,7 @@ export function getCurrentTimeZone(): string {
   }
 }
 
-/**
- * Returns the short timezone abbreviation (e.g., IST, GMT) based on current timezone settings.
- */
+
 export function getTimeZoneAbbreviation(): string {
   try {
     const tz = getPreferredTimeZone()
@@ -84,9 +71,7 @@ export function getTimeZoneAbbreviation(): string {
   }
 }
 
-/**
- * Centralized formatting for the Dashboard's briefing date.
- */
+
 export function formatBriefingDate(dateStr: string | null): string {
   const d = parseDateSafe(dateStr)
   if (!d) return ''
@@ -102,9 +87,7 @@ export function formatBriefingDate(dateStr: string | null): string {
   return `${day} ${month}, ${year}, ${time}`
 }
 
-/**
- * Split date/time formatting used for task cards.
- */
+
 export function formatTaskInit(dateStr: string): { date: string, time: string, tz: string } {
   const parsed = parseDateSafe(dateStr)
   if (!parsed) return { date: 'UNKNOWN DATE', time: 'UNKNOWN TIME', tz: '' }
@@ -130,9 +113,7 @@ export function formatTaskInit(dateStr: string): { date: string, time: string, t
   return { date, time, tz: tzAbbr }
 }
 
-/**
- * Long format used in Reports and TaskDetails.
- */
+
 export function formatDateLong(dateStr: string | null): string {
     const d = parseDateSafe(dateStr)
     if (!d) return 'N/A'
@@ -153,9 +134,7 @@ export function formatDateLong(dateStr: string | null): string {
     return tzAbbr ? `${formatted} ${tzAbbr}` : formatted
 }
 
-/**
- * Format date or time with locale and timezone support.
- */
+
 export function formatLocaleDateTime(
     dateStr: string | Date | null | undefined, 
     options: Intl.DateTimeFormatOptions = {}, 

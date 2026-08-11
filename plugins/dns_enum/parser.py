@@ -8,9 +8,6 @@ RECORD_REMEDIATION = (
 
 
 def parse(output: str) -> Dict[str, Any]:
-    """
-    Parse DNSRecon output.
-    """
     records: List[Dict[str, str]] = []
     grouped_records: Dict[tuple[str, str], Dict[str, Any]] = {}
     
