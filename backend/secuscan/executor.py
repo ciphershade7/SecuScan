@@ -1313,8 +1313,23 @@ class TaskExecutor:
             task_id=task_id,
         )
         asset_services = [
-            self._normalize_asset_service_record(target, item)
-            for item in (result.get("asset_services") or result.get("services") or [])
+            {
+                "asset_id": _stable_asset_id(
+                    target,
+                    item.get("host"),
+                    item.get("port"),
+                    item.get("protocol"),
+                ),
+                "target": target,
+                "host": item.get("host"),
+                "port": item.get("port"),
+                "protocol": item.get("protocol"),
+                "service_name": item.get("service_name"),
+                "service_version": item.get("service_version"),
+                "banner": item.get("banner"),
+                "metadata": item.get("metadata", {}),
+            }
+            for item in result.get("asset_services", [])
             if isinstance(item, dict)
         ]
         structured_result = dict(result)
