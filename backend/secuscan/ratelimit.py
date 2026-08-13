@@ -2,6 +2,7 @@
 Rate limiting for task execution and endpoints
 """
 
+import ipaddress
 from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Tuple, Dict, List
@@ -9,6 +10,30 @@ import asyncio
 
 from fastapi import Request, Response, HTTPException
 from .config import settings
+
+
+def _is_trusted_proxy(client_ip: str | None) -> bool:
+    """Return True when client_ip exactly matches a configured trusted proxy.
+
+    trusted_proxies is treated as a literal allowlist of exact IPv4/IPv6
+    addresses. CIDR ranges are not expanded here.
+    """
+    if not client_ip:
+        return False
+
+    try:
+        candidate = ipaddress.ip_address(client_ip)
+    except ValueError:
+        return False
+
+    for trusted_proxy in settings.trusted_proxies or []:
+        try:
+            if candidate == ipaddress.ip_address(trusted_proxy):
+                return True
+        except ValueError:
+            continue
+
+    return False
 
 
 class RateLimiter:
@@ -116,7 +141,10 @@ def resolve_client_identity(request: Request) -> str:
     Resolves client identity in priority order:
     1. API Key: Check standard headers X-API-Key/X-Api-Key, or Authorization bearer/basic token
     2. Authenticated User: Check X-User-ID or request.state.user_id / request.state.user.id / request.state.user
-    3. Client IP: Connection IP, respecting X-Forwarded-For *only* if the connection IP is a trusted proxy.
+    3. Client IP: Connection IP, respecting X-Forwarded-For *only* if the
+       direct connection IP exactly matches a configured trusted proxy.
+       trusted_proxies supports exact IPv4/IPv6 literals only; CIDR ranges are
+       not interpreted.
     """
     # 1. API Key Check
     for key_header in ("x-api-key", "x-key"):
@@ -149,7 +177,7 @@ def resolve_client_identity(request: Request) -> str:
     # 3. Client IP Check (with trusted proxy support)
     client_ip = request.client.host if request.client else "127.0.0.1"
 
-    if client_ip in settings.trusted_proxies and "x-forwarded-for" in request.headers:
+    if _is_trusted_proxy(client_ip) and "x-forwarded-for" in request.headers:
         xff = request.headers["x-forwarded-for"]
         # The first IP in X-Forwarded-For is the real client IP
         if ips := [ip.strip() for ip in xff.split(",") if ip.strip()]:

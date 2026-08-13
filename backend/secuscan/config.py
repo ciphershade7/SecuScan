@@ -116,6 +116,8 @@ class Settings(BaseSettings):
     rate_limit_scheduler_tick_limit: int = 1
     rate_limit_scheduler_tick_window: int = 10
 
+    # Exact trusted proxy IP literals only (IPv4 or IPv6). CIDR ranges are
+    # not interpreted by the request identity / rate-limit code paths.
     trusted_proxies: List[str] = ["127.0.0.1", "::1"]
 
     # Sandbox

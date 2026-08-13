@@ -127,7 +127,7 @@ sequenceDiagram
 `executor.py` coordinates task execution state and triggers scans according to target configuration. It enforces safe target constraints, applies sandboxed Docker memory/CPU quotas, streams scan stdout, and invokes `parser_sandbox.py` to parse results safely.
 `parser_sandbox.py` isolates third-party parsing scripts inside separate Python subprocesses to isolate parsing crashes.
 `capabilities.py` tracks plugin capabilities like `local_network` or `raw_socket`, rejecting scans that request unauthorized capabilities.
-`ratelimit.py` provides rate-limiting rules and restricts the number of concurrent scans based on configuration.
+`ratelimit.py` provides rate-limiting rules and restricts the number of concurrent scans based on configuration. Trusted proxies are matched as exact IPv4/IPv6 literals only; CIDR ranges are not interpreted when resolving request identity.
 > [!IMPORTANT]
 > `executor.py` handles the entire core task execution pipeline (~73 KB). Avoid adding cross-cutting feature logic directly inside `executor.py`; instead, write a helper module and import it.
 > [!WARNING]

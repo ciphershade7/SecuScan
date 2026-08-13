@@ -207,23 +207,38 @@ def test_proxy_ip_trust_validation(monkeypatch):
     Test X-Forwarded-For handling:
     - Trusted proxy: extract first IP from X-Forwarded-For
     - Untrusted proxy: ignore X-Forwarded-For and fall back to request client host (spoofing prevention)
+    - trusted_proxies only matches exact IPv4/IPv6 literals, not CIDR ranges
     """
-    monkeypatch.setattr(settings, "trusted_proxies", ["127.0.0.1", "10.0.0.1"])
+    monkeypatch.setattr(settings, "trusted_proxies", ["127.0.0.1", "::1", "10.0.0.1", "2001:db8::1"])
 
     class MockRequest:
         def __init__(self, host, xff=None):
             self.client = type("Client", (), {"host": host})()
             self.headers = {}
+            self.state = type("State", (), {})()
             if xff:
                 self.headers["x-forwarded-for"] = xff
+
+    # A: Direct client keeps its own IP.
+    req_direct = MockRequest(host="198.51.100.2")
+    assert resolve_client_identity(req_direct) == "ip:198.51.100.2"
 
     # A: Client IP is in trusted proxies -> trust XFF
     req_trusted = MockRequest(host="10.0.0.1", xff="203.0.113.5, 10.0.0.1")
     assert resolve_client_identity(req_trusted) == "ip:203.0.113.5"
 
-    # B: Client IP is NOT in trusted proxies -> ignore XFF (spoofing negative test case)
+    # B: IPv6 trusted proxy is handled the same way.
+    req_trusted_v6 = MockRequest(host="2001:db8::1", xff="2001:db8:ffff::5, 2001:db8::1")
+    assert resolve_client_identity(req_trusted_v6) == "ip:2001:db8:ffff::5"
+
+    # C: Client IP is NOT in trusted proxies -> ignore XFF (spoofing negative test case)
     req_untrusted = MockRequest(host="198.51.100.2", xff="203.0.113.5, 10.0.0.1")
     assert resolve_client_identity(req_untrusted) == "ip:198.51.100.2"
+
+    # D: CIDR-style entries are not treated as trusted ranges.
+    monkeypatch.setattr(settings, "trusted_proxies", ["10.0.0.0/8"])
+    req_cidr = MockRequest(host="10.1.2.3", xff="203.0.113.5, 10.1.2.3")
+    assert resolve_client_identity(req_cidr) == "ip:10.1.2.3"
 
 
 def test_route_level_integration_and_independent_buckets(test_client, monkeypatch):

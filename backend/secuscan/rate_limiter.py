@@ -73,13 +73,12 @@ class ScanRateLimiter:
     def _get_client_ip(self, request: Request) -> str:
         """
         Extract the real client IP.
-        Only trusts X-Forwarded-For when the direct client is a trusted proxy,
-        then falls back to the direct connection address.
+        Only trusts X-Forwarded-For when the direct client exactly matches a
+        configured trusted proxy. trusted_proxies supports exact IPv4/IPv6
+        literals only; CIDR ranges are not expanded here.
         """
         client_ip = request.client.host if request.client else None
-        trusted_proxies = settings.trusted_proxies or []
-
-        if client_ip and client_ip in trusted_proxies:
+        if client_ip and self._is_trusted_proxy(client_ip):
             forwarded_for = request.headers.get("X-Forwarded-For")
             if forwarded_for:
                 # X-Forwarded-For can be a comma-separated list; take the first
@@ -92,6 +91,22 @@ class ScanRateLimiter:
                         pass
 
         return client_ip or "unknown_client"
+
+    def _is_trusted_proxy(self, client_ip: str) -> bool:
+        """Return True when client_ip exactly matches a configured proxy."""
+        try:
+            candidate = ipaddress.ip_address(client_ip)
+        except ValueError:
+            return False
+
+        for trusted_proxy in settings.trusted_proxies or []:
+            try:
+                if candidate == ipaddress.ip_address(trusted_proxy):
+                    return True
+            except ValueError:
+                continue
+
+        return False
 
     def _make_key(self, ip: str, window_type: str, window_value: int) -> str:
         """Build a namespaced Redis key for this IP and time window."""
